@@ -633,61 +633,7 @@ body.light .hdr{background:rgba(255,255,255,.92)}
 .more-lbl{font-size:9.5px;font-weight:700;color:var(--t3);letter-spacing:.03em;text-transform:uppercase;text-align:center}
 .more-item.on .more-lbl{color:var(--gold)}
 
-/* ── MÉDIATHÈQUE ── */
-#photos-overlay{
-  display:none;position:fixed;inset:0;z-index:400;
-  background:var(--bg);flex-direction:column;
-}
-#photos-overlay.on{display:flex}
-.ph-header{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:16px 18px 10px;
-  background:var(--bg2);border-bottom:1px solid var(--bd);
-  flex-shrink:0;
-}
-.ph-filters{
-  display:flex;gap:7px;overflow-x:auto;
-  padding:10px 18px;flex-shrink:0;
-  background:var(--bg2);
-  scrollbar-width:none;
-}
-.ph-filters::-webkit-scrollbar{display:none}
-.ph-pill{
-  flex-shrink:0;padding:6px 13px;border-radius:99px;
-  border:1.5px solid var(--bd);background:var(--bg3);
-  color:var(--t3);font-size:12px;font-weight:700;
-  cursor:pointer;font-family:inherit;transition:all .15s;
-  white-space:nowrap;
-}
-.ph-pill.on{border-color:var(--gold);background:rgba(201,169,110,.15);color:var(--gold)}
-.ph-grid{
-  flex:1;overflow-y:auto;padding:12px;
-  display:grid;grid-template-columns:repeat(3,1fr);
-  gap:4px;align-content:start;
-}
-.ph-item{
-  position:relative;aspect-ratio:1;overflow:hidden;
-  border-radius:6px;cursor:pointer;background:var(--bg3);
-}
-.ph-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
-.ph-item:active img{transform:scale(.95)}
-.ph-label{
-  position:absolute;bottom:0;left:0;right:0;
-  background:linear-gradient(to top,rgba(0,0,0,.82),transparent);
-  padding:16px 5px 4px;
-  font-size:9px;font-weight:700;color:#fff;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  text-align:center;
-}
-.ph-cat-badge{
-  position:absolute;top:4px;left:4px;
-  font-size:8px;font-weight:800;padding:2px 6px;border-radius:99px;
-  text-transform:uppercase;letter-spacing:.04em;
-}
-.ph-empty{
-  grid-column:1/-1;text-align:center;padding:50px 0;
-  color:var(--t4);font-size:13px;
-}
+
 
 /* ── ENHANCED LOGIN PAGE ── */
 #login-page{background:radial-gradient(ellipse at 50% -10%,rgba(212,168,83,.1) 0%,var(--bg) 65%)}
@@ -794,7 +740,6 @@ body.light .lcard{background:var(--bg2)}
     </div>
     <div style="display:flex;gap:5px;align-items:center">
       <span id="d-sync" style="color:var(--green);font-size:10px">⬤ Sync</span>
-      <button class="btn-scan btn-sm" onclick="openScanner('property-photo')">📷</button>
       <button class="btn-g btn-sm" onclick="openPropModal(curId)" style="padding:7px 9px">✎</button>
     </div>
   </div>
@@ -845,18 +790,7 @@ body.light .lcard{background:var(--bg2)}
   </nav>
 </div>
 
-<!-- MÉDIATHÈQUE PHOTOS -->
-<div id="photos-overlay">
-  <div class="ph-header">
-    <div>
-      <div style="color:var(--t1);font-size:16px;font-weight:800">📷 Médiathèque</div>
-      <div id="ph-count" style="color:var(--t4);font-size:11px;margin-top:1px">0 photo</div>
-    </div>
-    <button onclick="closePhotoLibrary()" style="background:var(--bg3);border:1px solid var(--bd);color:var(--t1);font-size:14px;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
-  </div>
-  <div class="ph-filters" id="ph-filters"></div>
-  <div class="ph-grid" id="ph-grid"></div>
-</div>
+
 
 <!-- SCANNER PLEIN ÉCRAN -->
 <div id="scanner-overlay">
@@ -925,9 +859,6 @@ body.light .lcard{background:var(--bg2)}
       <button class="more-item" data-tab="budget" onclick="hideMoreSheet();goTab('budget')">
         <span class="more-icon">◉</span><span class="more-lbl">Budget</span>
       </button>
-      <button class="more-item" onclick="hideMoreSheet();openPhotoLibrary()">
-        <span class="more-icon">🖼️</span><span class="more-lbl">Photos</span>
-      </button>
     </div>
   </div>
 </div>
@@ -978,7 +909,7 @@ const INV_ETAT=['Neuf','Très bon','Bon','Passable','Mauvais'];
 let STATE={properties:{},partners:[]};
 let SES=null,curId=null,curTab='dashboard';
 let saveTimer=null,lastSaved=null,fbUnsub=null,presIv=null,onIv=null,isDark=true;
-let scanMode='expense',scanTenantId=null,scanPhaseId=null,scanEDLId=null,scanRoomIdx=null;
+let scanEDLId=null,scanRoomIdx=null,scanFurnitureId=null;
 let scannerStream=null,scanTorchOn=false;
 
 // ══ UTILS ══
@@ -993,7 +924,7 @@ const today=()=>new Date().toISOString().slice(0,10);
 const thisMonth=()=>new Date().toISOString().slice(0,7);
 function ensure(p){
   if(!p.tenants)p.tenants=[];if(!p.rents)p.rents=[];if(!p.charges)p.charges=[];
-  if(!p.expenses)p.expenses=[];if(!p.edls)p.edls=[];if(!p.inventory)p.inventory=[];if(!p.photos)p.photos=[];
+  if(!p.expenses)p.expenses=[];if(!p.edls)p.edls=[];if(!p.inventory)p.inventory=[];
   if(!p.events)p.events=[];if(!p.activityLog)p.activityLog=[];if(!p.materials)p.materials=[];if(!p.artisans)p.artisans=[];
   if(!p.phases)p.phases=[];
   p.tenants.forEach(t=>{if(!t.docs)t.docs=[];});
@@ -1160,47 +1091,22 @@ function renderTab(tab){
   if(r[tab])r[tab](el);else el.innerHTML='<div class="empty">Section en cours...</div>';
 }
 
-// ══ SCANNER PLEIN ÉCRAN ══
-async function openScanner(mode,opts={}){
-  scanMode=mode;
-  scanTenantId=opts.tenantId||null;
-  scanPhaseId=opts.phaseId||null;
-  scanEDLId=opts.edlId||null;
-  scanRoomIdx=opts.roomIdx!=null?opts.roomIdx:null;
-  const isPhotoMode=['edl-photo','phase-photo','property-photo'].includes(mode);
-  const scanHints={
-    'expense':'Cadrez la facture ou le ticket de caisse',
-    'tenant-doc':'Cadrez le document à photographier',
-    'edl-photo':'Photographiez les dégâts ou l\'état de la pièce',
-    'phase-photo':'Photographiez l\'avancement des travaux',
-    'property-photo':'Photographiez l\'état du bien ou des travaux'
-  };
-  document.getElementById('scan-hint').textContent=scanHints[mode]||'Cadrez le document';
-  document.getElementById('scan-title').textContent=isPhotoMode?'📷 Photo':'🔍 Scanner';
-  document.getElementById('scanner-overlay').classList.toggle('photo-mode',isPhotoMode);
-  // Show torch button only in photo mode
+// ══ APPAREIL PHOTO EDL ══
+async function openScanner(edlId,roomIdx,furnitureId=null){
+  scanEDLId=edlId;scanRoomIdx=roomIdx;scanFurnitureId=furnitureId;
+  document.getElementById('scan-hint').textContent=furnitureId?'Photographiez le meuble':'Photographiez la pièce ou les dégâts';
+  document.getElementById('scan-title').textContent='📷 Photo';
+  document.getElementById('scanner-overlay').classList.add('photo-mode');
   const torchBtn=document.getElementById('torch-btn');
-  torchBtn.style.display=isPhotoMode?'flex':'none';
-  scanTorchOn=false;torchBtn.textContent='💡';
+  torchBtn.style.display='flex';scanTorchOn=false;torchBtn.textContent='💡';
   try{
     const stream=await navigator.mediaDevices.getUserMedia({
-      video:{
-        facingMode:{exact:'environment'},
-        width:{ideal:1920,min:1280},
-        height:{ideal:1080,min:720}
-      }
+      video:{facingMode:{exact:'environment'},width:{ideal:1920,min:1280},height:{ideal:1080,min:720}}
     });
     scannerStream=stream;
     const v=document.getElementById('scanner-video');v.srcObject=stream;
     const track=stream.getVideoTracks()[0];
-    // Photo mode: balance des blancs + exposition continues pour rendu fidèle
-    // Doc mode: WB auto (réglage ponctuel), meilleure lisibilité texte
-    if(isPhotoMode){
-      try{await track.applyConstraints({advanced:[{whiteBalanceMode:'continuous'},{exposureMode:'continuous'},{focusMode:'continuous'},{brightnessMode:'auto'}]});}catch{}
-      try{await track.applyConstraints({advanced:[{whiteBalanceMode:'continuous'},{exposureMode:'continuous'},{focusMode:'continuous'}]});}catch{}
-    }else{
-      try{await track.applyConstraints({advanced:[{whiteBalanceMode:'auto'},{exposureMode:'auto'},{focusMode:'continuous'}]});}catch{}
-    }
+    try{await track.applyConstraints({advanced:[{whiteBalanceMode:'continuous'},{exposureMode:'continuous'},{focusMode:'continuous'}]});}catch{}
     document.getElementById('scanner-overlay').classList.add('on');
   }catch{
     try{
@@ -1232,19 +1138,6 @@ function capturePhoto(){
   canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');
   ctx.drawImage(video,0,0,W,H);
-  // Auto-levels uniquement pour les documents (factures, pièces justificatives)
-  if(['expense','tenant-doc'].includes(scanMode)){
-    const id=ctx.getImageData(0,0,W,H);const d=id.data;
-    let lo=255,hi=0;
-    for(let i=0;i<d.length;i+=4){const v=(d[i]+d[i+1]+d[i+2])/3;if(v<lo)lo=v;if(v>hi)hi=v;}
-    const range=Math.max(hi-lo,1);
-    for(let i=0;i<d.length;i+=4){
-      d[i]=Math.min(255,Math.round((d[i]-lo)/range*255));
-      d[i+1]=Math.min(255,Math.round((d[i+1]-lo)/range*255));
-      d[i+2]=Math.min(255,Math.round((d[i+2]-lo)/range*255));
-    }
-    ctx.putImageData(id,0,0);
-  }
   const full=canvas.toDataURL('image/jpeg',0.93);
   closeScanner();
   // Storage resize: max 1000px, quality 0.88
@@ -1274,84 +1167,7 @@ function resizeImg(src,maxPx,q,cb){
   };
   img.src=src;
 }
-function processCapture(photo){
-  if(scanMode==='expense')openExpenseModal(null,photo);
-  else if(scanMode==='tenant-doc')saveTenantDoc(photo);
-  else if(scanMode==='phase-photo')savePhasePhoto(photo);
-  else if(scanMode==='edl-photo')saveEDLPhoto(photo);
-  else if(scanMode==='property-photo')savePropertyPhoto(photo);
-}
-function savePropertyPhoto(photo){
-  const p=P();if(!p)return;ensure(p);
-  p.photos.push({src:photo,date:new Date().toLocaleDateString('fr-FR'),label:'Suivi bien'});
-  scheduleSave();
-  toast('Photo enregistrée dans la médiathèque');
-}
-
-// ══ MÉDIATHÈQUE ══
-const PH_CATS={
-  all:{lb:'Tous',col:'#c9a96e'},
-  property:{lb:'Suivi bien',col:'#00bcd4'},
-  works:{lb:'Travaux',col:'#f39c12'},
-  edl:{lb:'État des lieux',col:'#3498db'},
-  inventory:{lb:'Mobilier',col:'#9b59b6'},
-  tenants:{lb:'Locataires',col:'#2ecc71'},
-  expenses:{lb:'Dépenses',col:'#e74c3c'}
-};
-let phActiveCat='all',_phPhotos=[];
-function _phView(i){if(_phPhotos[i])viewPhoto(_phPhotos[i].src);}
-function collectPhotos(){
-  const p=P();if(!p)return[];ensure(p);
-  const list=[];
-  (p.photos||[]).forEach(ph=>list.push({src:ph.src,cat:'property',label:ph.label||'Photo bien',sub:ph.date||''}));
-  (p.phases||[]).forEach(ph=>(ph.photos||[]).forEach(src=>list.push({src,cat:'works',label:ph.name,sub:'Travaux'})));
-  (p.edls||[]).forEach(edl=>(edl.rooms||[]).forEach(r=>(r.photos||[]).forEach(src=>list.push({src,cat:'edl',label:r.name,sub:`EDL · ${edl.type==='entry'?'Entrée':'Sortie'} · ${edl.tenantName}`}))));
-  (p.inventory||[]).forEach(it=>{if(it.photo)list.push({src:it.photo,cat:'inventory',label:it.name,sub:it.room||'Mobilier'});});
-  (p.tenants||[]).forEach(t=>(t.docs||[]).forEach(d=>{if(d.photo)list.push({src:d.photo,cat:'tenants',label:d.label||d.type||'Document',sub:t.name});}));
-  (p.expenses||[]).forEach(ex=>{if(ex.photo)list.push({src:ex.photo,cat:'expenses',label:ex.label,sub:'Justificatif · '+fmt(ex.amount)});});
-  return list;
-}
-function openPhotoLibrary(){
-  const all=collectPhotos();
-  phActiveCat='all';
-  // Filters
-  const counts={all:all.length};
-  Object.keys(PH_CATS).filter(k=>k!=='all').forEach(k=>{counts[k]=all.filter(x=>x.cat===k).length;});
-  const filtersEl=document.getElementById('ph-filters');
-  filtersEl.innerHTML=Object.entries(PH_CATS)
-    .filter(([k])=>k==='all'||counts[k]>0)
-    .map(([k,v])=>`<button class="ph-pill${k==='all'?' on':''}" data-cat="${k}" onclick="setPhCat('${k}')">${v.lb}${k!=='all'?` <span style="opacity:.7">(${counts[k]})</span>`:` <span style="opacity:.7">(${all.length})</span>`}</button>`)
-    .join('');
-  document.getElementById('ph-count').textContent=`${all.length} photo${all.length>1?'s':''}`;
-  renderPhGrid(all);
-  document.getElementById('photos-overlay').classList.add('on');
-}
-function setPhCat(cat){
-  phActiveCat=cat;
-  // Utilise data-cat pour éviter les faux positifs via textContent
-  document.querySelectorAll('.ph-pill').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
-  const all=collectPhotos();
-  renderPhGrid(cat==='all'?all:all.filter(x=>x.cat===cat));
-}
-function renderPhGrid(filtered){
-  // Stocke les photos dans un tableau global pour éviter d'injecter
-  // les base64 (parfois >100 Ko) directement dans les attributs onclick
-  _phPhotos=filtered;
-  const grid=document.getElementById('ph-grid');
-  if(!filtered.length){
-    grid.innerHTML=`<div class="ph-empty"><div style="font-size:36px;margin-bottom:10px">🖼️</div><div>Aucune photo dans cette catégorie</div></div>`;
-    return;
-  }
-  grid.innerHTML=filtered.map((item,i)=>{
-    const c=PH_CATS[item.cat];
-    return`<div class="ph-item" onclick="_phView(${i})">
-      <img src="${item.src}" loading="lazy">
-      <div class="ph-cat-badge" style="background:${c.col}22;color:${c.col};border:1px solid ${c.col}44">${c.lb}</div>
-      <div class="ph-label">${item.label}</div>
-    </div>`;
-  }).join('');
-}
-function closePhotoLibrary(){document.getElementById('photos-overlay').classList.remove('on');}
+function processCapture(photo){saveEDLPhoto(photo);}
 
 // ══ GLOBAL SEARCH ══
 function globalSearch(q){
@@ -1625,11 +1441,9 @@ function rDash(el){
   <div class="card" style="margin-bottom:11px">
     <div class="sl">Actions rapides</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <button class="btn-scan" onclick="openScanner('expense')" style="justify-content:center;padding:12px 8px;font-size:13px">📷 Scanner facture</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('rents')">💰 Gérer loyers</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('tenants')">👤 Locataires</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('edl')">📄 État des lieux</button>
-      <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs);grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openPhotoLibrary()">🖼️ Médiathèque photos</button>
     </div>
   </div>
 
@@ -1706,22 +1520,13 @@ function rWorks(el){
         <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Dépensé</div><div style="font-size:13px;font-weight:700;color:${x.spent>x.budget?'var(--red)':'var(--green)'}">${fmt(x.spent)}</div></div>
         <div style="flex:1"><div class="pb" style="height:5px"><div class="pf" style="width:${Math.min(100,x.budget>0?x.spent/x.budget*100:0)}%;background:${x.color}"></div></div></div>
       </div>
-      ${(x.photos||[]).length?`<div style="display:flex;gap:5px;overflow-x:auto;margin-bottom:9px">${x.photos.slice(0,5).map(ph=>`<img src="${ph}" style="height:58px;width:58px;object-fit:cover;border-radius:7px;flex-shrink:0;border:1px solid var(--bd);cursor:pointer" data-ph="${ph}" onclick="viewPhoto(this.dataset.ph)">`).join('')}</div>`:''}
       <div style="display:flex;gap:6px">
         <button class="btn-g btn-sm" style="flex:1" onclick="openPhaseModal(${x.id})">✎ Modifier</button>
-        <button class="btn-scan btn-sm" onclick="scanPhaseId=${x.id};openScanner('phase-photo')">📷</button>
         ${x.startDate?`<button class="btn-g btn-sm" style="padding:7px 8px" onclick="openGCal('${x.name}','${x.startDate}','Phase travaux')">📅</button>`:''}
         <button class="btn-d btn-sm" style="padding:7px 9px" onclick="delItem('phases',${x.id})">✕</button>
       </div>
     </div>`).join('')}
   ${!(p.phases||[]).length?'<div class="empty">Aucune phase de travaux</div>':''}`;
-}
-function savePhasePhoto(photo){
-  const p=P();if(!p)return;
-  const ph=p.phases.find(x=>x.id===scanPhaseId);if(!ph)return;
-  if(!ph.photos)ph.photos=[];
-  ph.photos.push(photo);addLog(`a ajouté une photo à "${ph.name}"`);
-  renderTab('works');scheduleSave();toast('Photo ajoutée ✓','ok');
 }
 function openPhaseModal(id){
   const p=P();if(!p)return;
@@ -1838,30 +1643,6 @@ function rTenants(el){
         <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Dépôt</div><div style="font-size:13px;font-weight:700">${fmt(t.deposit)}</div></div>
         <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Fin bail</div><div style="font-size:12px;font-weight:600">${fmtD(t.leaseEnd)}</div></div>
       </div>
-      <!-- Dossier documents -->
-      <div style="margin-bottom:11px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-          <div style="color:var(--t4);font-size:10px;font-weight:700;text-transform:uppercase">Dossier (${(t.docs||[]).length} doc.)</div>
-          <button class="btn-scan btn-sm" style="padding:5px 10px;font-size:11px" onclick="scanTenantId=${t.id};openScanner('tenant-doc')">📷 Ajouter</button>
-        </div>
-        ${(t.docs||[]).length?`
-          <div class="doc-grid">
-            ${(t.docs||[]).map((d,i)=>`
-              <div style="position:relative">
-                <img class="doc-thumb" src="${d.photo}" onclick="viewDocModal(${t.id},${i})">
-                <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.7),transparent);padding:4px 5px;border-radius:0 0 8px 8px">
-                  <div style="color:#fff;font-size:9px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.label||'Document'}</div>
-                </div>
-              </div>`).join('')}
-            <div class="doc-add" onclick="scanTenantId=${t.id};openScanner('tenant-doc')">
-              <span>📄</span><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t4)">Ajouter</div>
-            </div>
-          </div>`:`
-          <div onclick="scanTenantId=${t.id};openScanner('tenant-doc')" style="border:2px dashed var(--bd);border-radius:10px;padding:16px;text-align:center;cursor:pointer">
-            <div style="font-size:26px;margin-bottom:5px">📄</div>
-            <div style="color:var(--t4);font-size:12px">Scanner les documents<br>du dossier locataire</div>
-          </div>`}
-      </div>
       <div style="display:flex;gap:6px">
         <button class="btn btn-sm" style="flex:1" onclick="genQuittance(${t.id})">📄 Quittance</button>
         <button class="btn-g btn-sm" onclick="openTenantModal(${t.id})">✎</button>
@@ -1892,47 +1673,6 @@ function saveTenant(id){
   if(id){const old=p.tenants.find(t=>t.id===id);p.tenants=p.tenants.map(t=>t.id===id?{...item,id,docs:old?.docs||[]}:t);addLog(`a modifié "${item.name}"`);}
   else{p.tenants.push({...item,id:Date.now(),docs:[]});addLog(`a ajouté locataire "${item.name}"`);}
   closeMod();renderTab('tenants');scheduleSave();updateReminderBadge();toast('Locataire enregistré ✓','ok');
-}
-function saveTenantDoc(photo){
-  const p=P();if(!p)return;ensure(p);
-  const t=p.tenants.find(x=>x.id===scanTenantId);if(!t)return;
-  setMod('Nommer le document',`
-    <img src="${photo}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-bottom:13px">
-    <div class="field"><label>Type de document</label>
-      <select class="inp" id="f-doctype">
-        ${['Pièce d\'identité','Passeport','Contrat de bail','Justificatif de domicile','Bulletin de salaire','Avis d\'imposition','Quittance de loyer','Caution','Attestation assurance','Autre'].map(t=>`<option>${t}</option>`).join('')}
-      </select>
-    </div>
-    <div class="field"><label>Nom personnalisé (optionnel)</label><input class="inp" id="f-docname" placeholder="ex: Passeport 2025"></div>
-    <button class="btn btn-full" onclick="confirmTenantDoc(${scanTenantId},'${photo.replace(/'/g,"\\'")}')">Enregistrer dans le dossier</button>`);
-  openMod();
-}
-function confirmTenantDoc(tid,photo){
-  const p=P();if(!p)return;ensure(p);
-  const t=p.tenants.find(x=>x.id===tid);if(!t)return;if(!t.docs)t.docs=[];
-  const type=document.getElementById('f-doctype').value;
-  const name=document.getElementById('f-docname').value.trim()||type;
-  t.docs.push({id:Date.now(),label:name,type,photo,date:today()});
-  addLog(`a ajouté "${name}" au dossier de ${t.name}`);
-  closeMod();renderTab('tenants');scheduleSave();toast('Document enregistré ✓','ok');
-}
-function viewDocModal(tid,idx){
-  const p=P();if(!p)return;
-  const t=p.tenants.find(x=>x.id===tid);if(!t||!t.docs)return;
-  const d=t.docs[idx];if(!d)return;
-  setMod(d.label,`
-    <img src="${d.photo}" style="width:100%;border-radius:10px;margin-bottom:13px">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div><div style="color:var(--t4);font-size:11px">Ajouté le ${fmtD(d.date)}</div><div style="margin-top:4px">${tag(d.type,'#3498db')}</div></div>
-      <button class="btn-d btn-sm" onclick="deleteDoc(${tid},${idx})">Supprimer</button>
-    </div>`);
-  openMod();
-}
-function deleteDoc(tid,idx){
-  const p=P();if(!p)return;
-  const t=p.tenants.find(x=>x.id===tid);if(!t||!t.docs)return;
-  if(!confirm('Supprimer ce document ?'))return;
-  t.docs.splice(idx,1);closeMod();renderTab('tenants');scheduleSave();toast('Document supprimé');
 }
 
 // ══ RENTS ══
@@ -2069,7 +1809,6 @@ function rExpenses(el){
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <h3 class="section-h" style="margin:0">Dépenses</h3>
     <div style="display:flex;gap:6px">
-      <button class="btn-scan btn-sm" onclick="openScanner('expense')">📷 Scanner</button>
       <button class="btn btn-sm" onclick="openExpenseModal()">+ Manuel</button>
     </div>
   </div>
@@ -2310,7 +2049,10 @@ function openEDLDetail(id){
         ${invItems.length?`
         <div style="background:var(--bg3);border-radius:9px;padding:9px;margin-bottom:8px">
           <div style="color:var(--t4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">Mobilier (${invItems.length})</div>
-          ${invItems.map(it=>`
+          ${invItems.map(it=>{
+            const fd=r.furniture[it.id]||{};
+            const fPhotos=fd.photos||[];
+            return`
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
               ${it.photo?`<img src="${it.photo}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0">`:
                 `<div style="width:32px;height:32px;border-radius:6px;background:var(--bg);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🛋</div>`}
@@ -2318,15 +2060,20 @@ function openEDLDetail(id){
                 <div style="color:var(--t1);font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.name}${it.brand?' · <span style="color:var(--t4);font-weight:400">'+it.brand+'</span>':''}</div>
                 <div style="color:var(--t4);font-size:10px">Inventaire : ${it.state||'—'}</div>
               </div>
-              ${etatSel((r.furniture[it.id]||{}).etat||'Bon état',`updateEDLFurniture(${id},${ri},${it.id},'etat',this.value)`)}
+              ${etatSel(fd.etat||'Bon état',`updateEDLFurniture(${id},${ri},${it.id},'etat',this.value)`)}
             </div>
-            <input placeholder="Observations ${it.name}..." value="${((r.furniture[it.id]||{}).notes||'').replace(/"/g,'&quot;')}" oninput="updateEDLFurniture(${id},${ri},${it.id},'notes',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;color:var(--t1);font-size:11px;font-family:inherit;margin-bottom:3px">`).join('')}
+            <input placeholder="Observations ${it.name}..." value="${(fd.notes||'').replace(/"/g,'&quot;')}" oninput="updateEDLFurniture(${id},${ri},${it.id},'notes',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;color:var(--t1);font-size:11px;font-family:inherit;margin-bottom:4px">
+            <div class="edl-photos" style="margin-bottom:8px">
+              ${fPhotos.map(ph=>`<img class="edl-photo" src="${ph}" data-ph="${ph}" onclick="viewPhoto(this.dataset.ph)">`).join('')}
+              <div class="edl-photo-add" onclick="openScanner(${id},${ri},${it.id})">📷</div>
+            </div>`;
+          }).join('')}
         </div>`:''}
         <!-- Notes générales + photos -->
         <textarea placeholder="Notes générales de la pièce..." style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:8px;color:var(--t1);font-size:12px;font-family:inherit;resize:none;min-height:44px;margin-bottom:8px" oninput="updateEDLRoom(${id},${ri},'notes',this.value)">${r.notes||''}</textarea>
         <div class="edl-photos">
           ${(r.photos||[]).map(ph=>`<img class="edl-photo" src="${ph}" data-ph="${ph}" onclick="viewPhoto(this.dataset.ph)">`).join('')}
-          <div class="edl-photo-add" onclick="scanEDLId=${id};scanRoomIdx=${ri};openScanner('edl-photo')">📷</div>
+          <div class="edl-photo-add" onclick="openScanner(${id},${ri})">📷</div>
         </div>
       </div>`;}).join('')}
     <div style="display:flex;gap:8px;margin-top:4px">
@@ -2474,10 +2221,16 @@ function updateEDLRoom(edlId,roomIdx,field,val){
 function saveEDLPhoto(photo){
   const p=P();if(!p)return;ensure(p);
   const e=p.edls.find(x=>x.id===scanEDLId);if(!e||!e.rooms[scanRoomIdx])return;
-  if(!e.rooms[scanRoomIdx].photos)e.rooms[scanRoomIdx].photos=[];
-  e.rooms[scanRoomIdx].photos.push(photo);
-  scheduleSave();renderTab('edl');toast('Photo ajoutée ✓','ok');
-  // Reopen detail
+  if(scanFurnitureId!=null){
+    const fd=e.rooms[scanRoomIdx].furniture;
+    if(!fd[scanFurnitureId])fd[scanFurnitureId]={};
+    if(!fd[scanFurnitureId].photos)fd[scanFurnitureId].photos=[];
+    fd[scanFurnitureId].photos.push(photo);
+  }else{
+    if(!e.rooms[scanRoomIdx].photos)e.rooms[scanRoomIdx].photos=[];
+    e.rooms[scanRoomIdx].photos.push(photo);
+  }
+  scheduleSave();toast('Photo ajoutée ✓','ok');
   setTimeout(()=>openEDLDetail(scanEDLId),300);
 }
 
