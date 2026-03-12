@@ -551,6 +551,107 @@ select option{background:var(--bg2)}
   .prop-grid{grid-template-columns:1fr}
   .g2{grid-template-columns:1fr}
 }
+
+/* ── HEADER GLASSMORPHISM ── */
+.hdr{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(15,19,32,.92)}
+body.light .hdr{background:rgba(255,255,255,.92)}
+.syncbar{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+
+/* ── MODAL ANIMATION ── */
+#mov.on{animation:bkdFadeIn .2s ease}
+#mov.on #mbox{animation:mboxUp .25s cubic-bezier(.34,1.15,.64,1)}
+@keyframes bkdFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes mboxUp{from{transform:translateY(52px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── BOTTOM NAV ── */
+.bnav{
+  background:var(--bg2);
+  border-top:1px solid var(--bd);
+  display:flex;
+  flex-shrink:0;
+  padding-bottom:max(env(safe-area-inset-bottom,0px),4px);
+  position:relative;z-index:45;
+}
+.bnav-item{
+  flex:1;background:none;border:none;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:9px 4px 5px;font-family:inherit;
+  color:var(--t3);transition:color .15s;
+  position:relative;min-height:54px;
+  -webkit-tap-highlight-color:transparent;
+}
+.bnav-item.on{color:var(--gold)}
+.bnav-indicator{
+  position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:28px;height:2.5px;border-radius:0 0 3px 3px;
+  background:var(--gold);opacity:0;transition:opacity .2s,width .2s;
+}
+.bnav-item.on .bnav-indicator{opacity:1}
+.bnav-icon{font-size:19px;line-height:1.3;display:block}
+.bnav-lbl{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-top:2px;display:block}
+
+/* ── MORE SHEET ── */
+#more-sheet{
+  display:none;position:fixed;inset:0;
+  background:rgba(4,6,14,.75);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  z-index:150;align-items:flex-end;justify-content:center;
+}
+#more-sheet.on{display:flex}
+#more-sheet-box{
+  background:var(--bg2);
+  border-top-left-radius:22px;border-top-right-radius:22px;
+  padding:6px 18px max(env(safe-area-inset-bottom,0px),20px);
+  width:100%;max-width:580px;
+  border-top:1px solid var(--bd);
+  box-shadow:0 -8px 48px rgba(0,0,0,.55);
+  animation:sheetUp .22s cubic-bezier(.4,0,.2,1);
+}
+#more-sheet-box::before{
+  content:'';display:block;
+  width:36px;height:4px;background:var(--bd);border-radius:99px;
+  margin:8px auto 14px;
+}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.more-title{color:var(--t3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+.more-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:4px}
+.more-item{
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:13px 6px 11px;
+  background:var(--bg3);border:1px solid var(--bd);
+  border-radius:14px;cursor:pointer;transition:all .15s;font-family:inherit;
+  -webkit-tap-highlight-color:transparent;
+}
+.more-item:active{transform:scale(.95);background:var(--bd)}
+.more-item.on{border-color:var(--gold);background:var(--gold3)}
+.more-icon{font-size:20px;line-height:1}
+.more-lbl{font-size:9.5px;font-weight:700;color:var(--t3);letter-spacing:.03em;text-transform:uppercase;text-align:center}
+.more-item.on .more-lbl{color:var(--gold)}
+
+/* ── ENHANCED LOGIN PAGE ── */
+#login-page{background:radial-gradient(ellipse at 50% -10%,rgba(212,168,83,.1) 0%,var(--bg) 65%)}
+body.light #login-page{background:radial-gradient(ellipse at 50% -10%,rgba(212,168,83,.08) 0%,var(--bg) 65%)}
+.lcard{background:linear-gradient(160deg,var(--bg2) 0%,rgba(15,19,32,.85) 100%);border-color:rgba(212,168,83,.15)}
+body.light .lcard{background:var(--bg2)}
+.logo{animation:logoPulse 3s ease-in-out infinite}
+@keyframes logoPulse{
+  0%,100%{box-shadow:0 8px 24px rgba(212,168,83,.35)}
+  50%{box-shadow:0 10px 38px rgba(212,168,83,.55),0 0 0 8px rgba(212,168,83,.08)}
+}
+
+/* ── ENHANCED PORTFOLIO CARDS ── */
+.pc{background:linear-gradient(148deg,var(--bg2) 0%,var(--bg3) 100%)}
+.pc:hover{transform:translateY(-3px);box-shadow:0 18px 50px rgba(0,0,0,.4);border-color:rgba(212,168,83,.3)}
+.kc{background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 85%)}
+
+/* ── SMOOTH SCROLL & TRANSITIONS ── */
+.scroll{scroll-behavior:smooth}
+.pf{transition:width .65s cubic-bezier(.4,0,.2,1)}
+.card{transition:box-shadow .2s}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:scale(.97) translateY(0)}
+
+/* ── HIDE TOP TABS (replaced by bottom nav) ── */
+#det-tabs{display:none}
 </style>
 </head>
 <body>
@@ -653,6 +754,33 @@ select option{background:var(--bg2)}
     <button class="tb"    onclick="goTab('budget',this)">◉ Budget</button>
   </div>
   <div class="scroll" id="tab-ct"></div>
+  <nav class="bnav" id="bnav">
+    <button class="bnav-item on" data-tab="dashboard" onclick="goTab('dashboard')">
+      <div class="bnav-indicator"></div>
+      <span class="bnav-icon">📊</span>
+      <span class="bnav-lbl">Accueil</span>
+    </button>
+    <button class="bnav-item" data-tab="works" onclick="goTab('works')">
+      <div class="bnav-indicator"></div>
+      <span class="bnav-icon">⚙</span>
+      <span class="bnav-lbl">Travaux</span>
+    </button>
+    <button class="bnav-item" data-tab="tenants" onclick="goTab('tenants')">
+      <div class="bnav-indicator"></div>
+      <span class="bnav-icon">👤</span>
+      <span class="bnav-lbl">Locataires</span>
+    </button>
+    <button class="bnav-item" data-tab="rents" onclick="goTab('rents')">
+      <div class="bnav-indicator"></div>
+      <span class="bnav-icon">💰</span>
+      <span class="bnav-lbl">Loyers</span>
+    </button>
+    <button class="bnav-item" id="bnav-more" onclick="showMoreSheet()">
+      <div class="bnav-indicator"></div>
+      <span class="bnav-icon" style="font-size:20px;letter-spacing:-1px">···</span>
+      <span class="bnav-lbl">Plus</span>
+    </button>
+  </nav>
 </div>
 
 <!-- SCANNER PLEIN ÉCRAN -->
@@ -692,6 +820,40 @@ select option{background:var(--bg2)}
     <div id="mbody"></div>
   </div>
 </div>
+
+<!-- MORE SHEET -->
+<div id="more-sheet" onclick="hideMoreSheet(event)">
+  <div id="more-sheet-box">
+    <div class="more-title">Toutes les sections</div>
+    <div class="more-grid">
+      <button class="more-item" data-tab="planning" onclick="hideMoreSheet();goTab('planning')">
+        <span class="more-icon">▦</span><span class="more-lbl">Planning</span>
+      </button>
+      <button class="more-item" data-tab="artisans" onclick="hideMoreSheet();goTab('artisans')">
+        <span class="more-icon">◈</span><span class="more-lbl">Artisans</span>
+      </button>
+      <button class="more-item" data-tab="charges" onclick="hideMoreSheet();goTab('charges')">
+        <span class="more-icon">📋</span><span class="more-lbl">Charges</span>
+      </button>
+      <button class="more-item" data-tab="expenses" onclick="hideMoreSheet();goTab('expenses')">
+        <span class="more-icon">🧾</span><span class="more-lbl">Dépenses</span>
+      </button>
+      <button class="more-item" data-tab="edl" onclick="hideMoreSheet();goTab('edl')">
+        <span class="more-icon">📄</span><span class="more-lbl">État lieux</span>
+      </button>
+      <button class="more-item" data-tab="inventory" onclick="hideMoreSheet();goTab('inventory')">
+        <span class="more-icon">🛋</span><span class="more-lbl">Mobilier</span>
+      </button>
+      <button class="more-item" data-tab="budget" onclick="hideMoreSheet();goTab('budget')">
+        <span class="more-icon">◉</span><span class="more-lbl">Budget</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- CANVAS (used for photo capture) -->
+<canvas id="cap-canvas" style="display:none"></canvas>
+<div id="toast"></div>
 
 <script>
 // ══ CRYPTO ══
@@ -891,10 +1053,22 @@ function openProperty(id){
   document.getElementById('d-name').textContent=p.info.name;
   document.getElementById('d-addr').textContent=p.info.address;
   document.querySelectorAll('#det-tabs .tb').forEach((b,i)=>b.classList.toggle('on',i===0));
+  // Reset bottom nav to dashboard
+  document.querySelectorAll('#bnav .bnav-item').forEach(b=>b.classList.remove('on'));
+  const dashBtn=document.querySelector('#bnav [data-tab="dashboard"]');if(dashBtn)dashBtn.classList.add('on');
+  // Reset more-sheet state
+  document.querySelectorAll('.more-item[data-tab]').forEach(b=>b.classList.remove('on'));
   curTab='dashboard';showPage('detail-page');renderTab('dashboard');
 }
 function goTab(tab,btn){
   if(btn){document.querySelectorAll('#det-tabs .tb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
+  // Sync bottom nav
+  document.querySelectorAll('#bnav .bnav-item').forEach(b=>b.classList.remove('on'));
+  const bItem=document.querySelector(`#bnav [data-tab="${tab}"]`);
+  if(bItem){bItem.classList.add('on');}
+  else{const more=document.getElementById('bnav-more');if(more)more.classList.add('on');}
+  // Sync more-sheet active state
+  document.querySelectorAll('.more-item[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
   curTab=tab;renderTab(tab);
   document.getElementById('tab-ct').scrollTop=0;
 }
@@ -1186,6 +1360,14 @@ function delProp(id){
 function setMod(title,html){document.getElementById('mtitle').textContent=title;document.getElementById('mbody').innerHTML=html;}
 function openMod(){document.getElementById('mov').classList.add('on');}
 function closeMod(e){if(e&&e.target!==document.getElementById('mov'))return;document.getElementById('mov').classList.remove('on');}
+function showMoreSheet(){
+  document.querySelectorAll('.more-item[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===curTab));
+  document.getElementById('more-sheet').classList.add('on');
+}
+function hideMoreSheet(e){
+  if(e&&e.target!==document.getElementById('more-sheet'))return;
+  document.getElementById('more-sheet').classList.remove('on');
+}
 function toast(m,type=''){
   const t=document.getElementById('toast');t.textContent=m;t.className='on'+(type?' '+type:'');
   clearTimeout(t._t);t._t=setTimeout(()=>t.className='',2800);
