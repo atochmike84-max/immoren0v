@@ -1139,7 +1139,7 @@ function configureAnthropicKey(cb){
       <input class="inp" id="f-akey" placeholder="sk-ant-api03-..." type="password">
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-full" onclick="saveAnthropicKey(${cb?'true':'false'})">Enregistrer</button>
+      <button class="btn btn-full" onclick="saveAnthropicKey()">Enregistrer</button>
     </div>`);
   openMod();
   window._anthropicKeyCb=cb||null;
@@ -1180,8 +1180,11 @@ function capturePhoto(){
 }
 function fallbackFile(){
   const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.capture='environment';
+  inp.style.display='none';
   inp.onchange=e=>{
-    const file=e.target.files[0];if(!file)return;
+    const file=e.target.files[0];
+    document.body.removeChild(inp);
+    if(!file)return;
     const reader=new FileReader();
     reader.onload=ev=>{
       const img=new Image();
@@ -1190,6 +1193,7 @@ function fallbackFile(){
     };
     reader.readAsDataURL(file);
   };
+  document.body.appendChild(inp);
   inp.click();
 }
 function resizeImg(src,maxPx,q,cb){
@@ -1235,8 +1239,10 @@ async function analyzeExpensePhoto(photo){
     });
     if(!resp.ok){const err=await resp.json();throw new Error(err.error?.message||'Erreur '+resp.status);}
     const data=await resp.json();
-    const raw=data.content[0].text.trim();
-    const detected=JSON.parse(raw.match(/\{[\s\S]*\}/)[0]);
+    const raw=data.content[0]?.text?.trim()||'';
+    const match=raw.match(/\{[\s\S]*\}/);
+    if(!match)throw new Error('Réponse inattendue du modèle');
+    const detected=JSON.parse(match[0]);
     toast('✓ Document analysé','ok');
     openExpenseModal(null,photo,detected);
   }catch(e){
@@ -1285,8 +1291,11 @@ function globalSearch(q){
     });
   });
   if(!results.length){box.innerHTML='<div class="sr-item"><span style="color:var(--t4);font-size:13px">Aucun résultat</span></div>';box.style.display='block';return;}
-  box.innerHTML=results.slice(0,8).map((r,i)=>`<div class="sr-item" onclick="_s${i}()"><span style="font-size:17px">${r.icon}</span><div><div style="font-size:13px;font-weight:600;color:var(--t1)">${r.l}</div><div style="font-size:11px;color:var(--t4)">${r.s}</div></div></div>`).join('');
-  results.slice(0,8).forEach((r,i)=>{window[`_s${i}`]=()=>{box.style.display='none';document.getElementById('global-search').value='';r.fn();};});
+  // Clean up previous search handlers to avoid stale globals
+  for(let i=0;i<8;i++)delete window[`_s${i}`];
+  const top=results.slice(0,8);
+  box.innerHTML=top.map((r,i)=>`<div class="sr-item" onclick="_s${i}()"><span style="font-size:17px">${r.icon}</span><div><div style="font-size:13px;font-weight:600;color:var(--t1)">${r.l}</div><div style="font-size:11px;color:var(--t4)">${r.s}</div></div></div>`).join('');
+  top.forEach((r,i)=>{window[`_s${i}`]=()=>{box.style.display='none';document.getElementById('global-search').value='';r.fn();};});
   box.style.display='block';
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.searchbar'))document.getElementById('search-results').style.display='none';});
@@ -1405,7 +1414,7 @@ function openPropModal(id){
   const f=p?{...p.info}:{name:'',address:'',type:'Appartement',surface:'',purchasePrice:'',targetRent:'',color:'#c9a96e',status:'renovation'};
   setMod(id?'Modifier le bien':'Nouveau bien',`
     <div class="field"><label>Nom du bien</label><input class="inp" id="f-name" value="${f.name}" placeholder="ex: Appart Gambetta 3P"></div>
-    <div class="field"><label>Adresse</label><input class="inp" id="f-addr" value="${f.address}"></div>
+    <div class="field"><label>Adresse</label><input class="inp" id="f-addr" value="${(f.address||'').replace(/"/g,'&quot;')}"></div>
     <div class="g2">
       <div class="field"><label>Type</label><select class="inp" id="f-type">${TYPES.map(t=>`<option value="${t}" ${f.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
       <div class="field"><label>Surface m²</label><input class="inp" id="f-surf" type="number" value="${f.surface}"></div>
@@ -1963,7 +1972,7 @@ function openExpenseModal(id=null,photo=null,detected=null){
   setMod(id?'Modifier la dépense':'Nouvelle dépense',`
     ${photoSrc?`<div style="margin-bottom:12px;cursor:pointer" data-ph="${photoSrc}" onclick="viewPhoto(this.dataset.ph)"><img src="${photoSrc}" style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--bd)"><div style="color:var(--t4);font-size:11px;text-align:center;margin-top:4px">📷 Appuyer pour agrandir</div></div>`:''}
     ${detected?`<div style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--green)">✓ Données détectées automatiquement — vérifiez avant d'enregistrer</div>`:''}
-    <div class="field"><label>Libellé</label><input class="inp" id="f-label" value="${f.label}" placeholder="ex: Plinthe cuisine, Ampoules..."></div>
+    <div class="field"><label>Libellé</label><input class="inp" id="f-label" value="${(f.label||'').replace(/"/g,'&quot;')}" placeholder="ex: Plinthe cuisine, Ampoules..."></div>
     <div class="g2">
       <div class="field"><label>Montant €</label><input class="inp" id="f-amt" type="number" step="0.01" value="${f.amount}" placeholder="0.00"></div>
       <div class="field"><label>Date</label><input class="inp" id="f-date" type="date" value="${f.date}"></div>
@@ -1987,7 +1996,7 @@ function openExpenseModal(id=null,photo=null,detected=null){
         </div>
       </div>
     </div>
-    <div class="field"><label>Notes</label><input class="inp" id="f-notes" value="${f.notes||''}"></div>
+    <div class="field"><label>Notes</label><input class="inp" id="f-notes" value="${(f.notes||'').replace(/"/g,'&quot;')}"></div>
     <input type="hidden" id="f-photo" value="${photoSrc||''}">
     <button class="btn btn-full" onclick="saveExpense(${id||0})">Enregistrer la dépense</button>`);
   openMod();
@@ -2063,17 +2072,18 @@ function openEDLModal(id){
       <div class="field"><label>Type</label><select class="inp" id="f-type"><option value="entry" ${f.type==='entry'?'selected':''}>Entrée</option><option value="exit" ${f.type==='exit'?'selected':''}>Sortie</option></select></div>
       <div class="field"><label>Date</label><input class="inp" id="f-date" type="date" value="${f.date}"></div>
     </div>
-    <div class="field"><label>Nom du locataire</label><input class="inp" id="f-ten" value="${f.tenantName}"></div>
+    <div class="field"><label>Nom du locataire</label><input class="inp" id="f-ten" value="${(f.tenantName||'').replace(/"/g,'&quot;')}"></div>
     <div class="field"><label>Pièces à inspecter</label>
       <div id="rooms-list" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">
-        ${defaultRooms.map(r=>`<button onclick="toggleRoomSel(this,'${r}')" style="border:1px solid ${(f.rooms||[]).some(x=>x.name===r)?'var(--gold)':'var(--bd)'};background:${(f.rooms||[]).some(x=>x.name===r)?'rgba(201,169,110,.1)':'var(--bg3)'};color:${(f.rooms||[]).some(x=>x.name===r)?'var(--gold)':'var(--t3)'};border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:inherit" data-room="${r}">${r}</button>`).join('')}
+        ${defaultRooms.map(r=>{const sel=(f.rooms||[]).some(x=>x.name===r);return`<button onclick="toggleRoomSel(this)" style="border:1px solid ${sel?'var(--gold)':'var(--bd)'};background:${sel?'rgba(201,169,110,.1)':'var(--bg3)'};color:${sel?'var(--gold)':'var(--t3)'};border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:inherit" data-room="${r}" data-sel="${sel?'1':'0'}">${r}</button>`;}).join('')}
       </div>
     </div>
     <button class="btn btn-full" onclick="saveEDL(${id||0})">Créer l'état des lieux</button>`);
   openMod();
 }
-function toggleRoomSel(btn,room){
-  const active=btn.style.borderColor.includes('gold')||btn.style.border.includes('var(--gold)');
+function toggleRoomSel(btn){
+  const active=btn.dataset.sel==='1';
+  btn.dataset.sel=active?'0':'1';
   if(!active){btn.style.border='1px solid var(--gold)';btn.style.background='rgba(201,169,110,.1)';btn.style.color='var(--gold)';}
   else{btn.style.border='1px solid var(--bd)';btn.style.background='var(--bg3)';btn.style.color='var(--t3)';}
 }
@@ -2082,7 +2092,7 @@ function saveEDL(id){
   const type=document.getElementById('f-type').value;
   const date=document.getElementById('f-date').value;
   const tenantName=document.getElementById('f-ten').value.trim();
-  const selRooms=[...document.querySelectorAll('#rooms-list button')].filter(b=>b.style.color.includes('gold')||b.style.border.includes('gold')).map(b=>b.dataset.room);
+  const selRooms=[...document.querySelectorAll('#rooms-list button[data-sel="1"]')].map(b=>b.dataset.room);
   const DEF_ELEM=()=>({sol:{etat:'Bon état',notes:''},murs:{etat:'Bon état',notes:''},plafond:{etat:'Bon état',notes:''},fenetres:{etat:'Bon état',notes:''}});
   const rooms=selRooms.map(name=>({name,etat:'Bon état',notes:'',photos:[],elements:DEF_ELEM(),furniture:{}}));
   const item={type,date,tenantName,rooms};
@@ -2307,6 +2317,7 @@ function saveEDLPhoto(photo){
   const p=P();if(!p)return;ensure(p);
   const e=p.edls.find(x=>x.id===scanEDLId);if(!e||!e.rooms[scanRoomIdx])return;
   if(scanFurnitureId!=null){
+    if(!e.rooms[scanRoomIdx].furniture)e.rooms[scanRoomIdx].furniture={};
     const fd=e.rooms[scanRoomIdx].furniture;
     if(!fd[scanFurnitureId])fd[scanFurnitureId]={};
     if(!fd[scanFurnitureId].photos)fd[scanFurnitureId].photos=[];
@@ -2366,10 +2377,10 @@ function openInvModal(id){
     ${f.photo?`<img src="${f.photo}" style="width:100%;max-height:120px;object-fit:cover;border-radius:9px;margin-bottom:12px;cursor:pointer" data-ph="${f.photo}" onclick="viewPhoto(this.dataset.ph)">`:
       `<div onclick="openInvPhoto()" style="border:2px dashed var(--bd);border-radius:9px;padding:14px;text-align:center;cursor:pointer;margin-bottom:12px"><div style="font-size:24px">📷</div><div style="color:var(--t4);font-size:12px;margin-top:3px">Ajouter une photo</div></div>`}
     <input type="hidden" id="f-photo" value="${f.photo||''}">
-    <div class="g2"><div class="field"><label>Nom de l'article</label><input class="inp" id="f-name" value="${f.name}" placeholder="Canapé 3 places"></div><div class="field"><label>Pièce</label><select class="inp" id="f-room">${rooms.map(r=>`<option value="${r}" ${f.room===r?'selected':''}>${r}</option>`).join('')}</select></div></div>
-    <div class="g2"><div class="field"><label>Marque / Modèle</label><input class="inp" id="f-brand" value="${f.brand||''}"></div><div class="field"><label>État</label><select class="inp" id="f-state">${INV_ETAT.map(s=>`<option value="${s}" ${f.state===s?'selected':''}>${s}</option>`).join('')}</select></div></div>
-    <div class="g2"><div class="field"><label>Valeur estimée €</label><input class="inp" id="f-val" type="number" value="${f.value||''}"></div><div class="field"><label>N° de série</label><input class="inp" id="f-serial" value="${f.serial||''}"></div></div>
-    <div class="field"><label>Notes</label><input class="inp" id="f-notes" value="${f.notes||''}"></div>
+    <div class="g2"><div class="field"><label>Nom de l'article</label><input class="inp" id="f-name" value="${(f.name||'').replace(/"/g,'&quot;')}" placeholder="Canapé 3 places"></div><div class="field"><label>Pièce</label><select class="inp" id="f-room">${rooms.map(r=>`<option value="${r}" ${f.room===r?'selected':''}>${r}</option>`).join('')}</select></div></div>
+    <div class="g2"><div class="field"><label>Marque / Modèle</label><input class="inp" id="f-brand" value="${(f.brand||'').replace(/"/g,'&quot;')}"></div><div class="field"><label>État</label><select class="inp" id="f-state">${INV_ETAT.map(s=>`<option value="${s}" ${f.state===s?'selected':''}>${s}</option>`).join('')}</select></div></div>
+    <div class="g2"><div class="field"><label>Valeur estimée €</label><input class="inp" id="f-val" type="number" value="${f.value||''}"></div><div class="field"><label>N° de série</label><input class="inp" id="f-serial" value="${(f.serial||'').replace(/"/g,'&quot;')}"></div></div>
+    <div class="field"><label>Notes</label><input class="inp" id="f-notes" value="${(f.notes||'').replace(/"/g,'&quot;')}"></div>
     <button class="btn btn-full" onclick="saveInv(${id||0})">Enregistrer</button>`);
   openMod();
 }
