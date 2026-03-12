@@ -794,7 +794,7 @@ body.light .lcard{background:var(--bg2)}
     </div>
     <div style="display:flex;gap:5px;align-items:center">
       <span id="d-sync" style="color:var(--green);font-size:10px">⬤ Sync</span>
-      <button class="btn-scan btn-sm" onclick="openScanner('expense')">📷</button>
+      <button class="btn-scan btn-sm" onclick="openScanner('property-photo')">📷</button>
       <button class="btn-g btn-sm" onclick="openPropModal(curId)" style="padding:7px 9px">✎</button>
     </div>
   </div>
@@ -993,7 +993,7 @@ const today=()=>new Date().toISOString().slice(0,10);
 const thisMonth=()=>new Date().toISOString().slice(0,7);
 function ensure(p){
   if(!p.tenants)p.tenants=[];if(!p.rents)p.rents=[];if(!p.charges)p.charges=[];
-  if(!p.expenses)p.expenses=[];if(!p.edls)p.edls=[];if(!p.inventory)p.inventory=[];
+  if(!p.expenses)p.expenses=[];if(!p.edls)p.edls=[];if(!p.inventory)p.inventory=[];if(!p.photos)p.photos=[];
   if(!p.events)p.events=[];if(!p.activityLog)p.activityLog=[];if(!p.materials)p.materials=[];if(!p.artisans)p.artisans=[];
   if(!p.phases)p.phases=[];
   p.tenants.forEach(t=>{if(!t.docs)t.docs=[];});
@@ -1167,12 +1167,13 @@ async function openScanner(mode,opts={}){
   scanPhaseId=opts.phaseId||null;
   scanEDLId=opts.edlId||null;
   scanRoomIdx=opts.roomIdx!=null?opts.roomIdx:null;
-  const isPhotoMode=['edl-photo','phase-photo'].includes(mode);
+  const isPhotoMode=['edl-photo','phase-photo','property-photo'].includes(mode);
   const scanHints={
     'expense':'Cadrez la facture ou le ticket de caisse',
     'tenant-doc':'Cadrez le document à photographier',
-    'edl-photo':'Photographiez la pièce ou le mobilier',
-    'phase-photo':'Photographiez l\'avancement des travaux'
+    'edl-photo':'Photographiez les dégâts ou l\'état de la pièce',
+    'phase-photo':'Photographiez l\'avancement des travaux',
+    'property-photo':'Photographiez l\'état du bien ou des travaux'
   };
   document.getElementById('scan-hint').textContent=scanHints[mode]||'Cadrez le document';
   document.getElementById('scan-title').textContent=isPhotoMode?'📷 Photo':'🔍 Scanner';
@@ -1278,11 +1279,19 @@ function processCapture(photo){
   else if(scanMode==='tenant-doc')saveTenantDoc(photo);
   else if(scanMode==='phase-photo')savePhasePhoto(photo);
   else if(scanMode==='edl-photo')saveEDLPhoto(photo);
+  else if(scanMode==='property-photo')savePropertyPhoto(photo);
+}
+function savePropertyPhoto(photo){
+  const p=P();if(!p)return;ensure(p);
+  p.photos.push({src:photo,date:new Date().toLocaleDateString('fr-FR'),label:'Suivi bien'});
+  scheduleSave();
+  toast('Photo enregistrée dans la médiathèque');
 }
 
 // ══ MÉDIATHÈQUE ══
 const PH_CATS={
   all:{lb:'Tous',col:'#c9a96e'},
+  property:{lb:'Suivi bien',col:'#00bcd4'},
   works:{lb:'Travaux',col:'#f39c12'},
   edl:{lb:'État des lieux',col:'#3498db'},
   inventory:{lb:'Mobilier',col:'#9b59b6'},
@@ -1294,6 +1303,7 @@ function _phView(i){if(_phPhotos[i])viewPhoto(_phPhotos[i].src);}
 function collectPhotos(){
   const p=P();if(!p)return[];ensure(p);
   const list=[];
+  (p.photos||[]).forEach(ph=>list.push({src:ph.src,cat:'property',label:ph.label||'Photo bien',sub:ph.date||''}));
   (p.phases||[]).forEach(ph=>(ph.photos||[]).forEach(src=>list.push({src,cat:'works',label:ph.name,sub:'Travaux'})));
   (p.edls||[]).forEach(edl=>(edl.rooms||[]).forEach(r=>(r.photos||[]).forEach(src=>list.push({src,cat:'edl',label:r.name,sub:`EDL · ${edl.type==='entry'?'Entrée':'Sortie'} · ${edl.tenantName}`}))));
   (p.inventory||[]).forEach(it=>{if(it.photo)list.push({src:it.photo,cat:'inventory',label:it.name,sub:it.room||'Mobilier'});});
