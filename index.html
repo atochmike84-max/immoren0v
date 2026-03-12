@@ -346,6 +346,12 @@ select option{background:var(--bg2)}
   border:2px solid var(--gold);border-radius:18px;
   box-shadow:0 0 0 9999px rgba(0,0,0,.48);position:relative;
 }
+#scanner-overlay.photo-mode .scan-frame{
+  width:min(92vw,520px);aspect-ratio:4/3;
+  border-color:#60a5fa;border-radius:14px;
+}
+#scanner-overlay.photo-mode .scan-corner{border-color:#93c5fd}
+#scanner-overlay.photo-mode .scan-line{display:none}
 .scan-corner{position:absolute;width:22px;height:22px;border-color:var(--gold2);border-style:solid}
 .scan-corner.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:5px 0 0 0}
 .scan-corner.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 5px 0 0}
@@ -789,7 +795,7 @@ body.light .lcard{background:var(--bg2)}
   <div class="scan-ui">
     <div class="scan-top">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="color:#fff;font-size:14px;font-weight:700">📷 Scanner</div>
+        <div id="scan-title" style="color:#fff;font-size:14px;font-weight:700">📷 Scanner</div>
         <button onclick="closeScanner()" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:14px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
       </div>
     </div>
@@ -1085,7 +1091,16 @@ async function openScanner(mode,opts={}){
   scanPhaseId=opts.phaseId||null;
   scanEDLId=opts.edlId||null;
   scanRoomIdx=opts.roomIdx!=null?opts.roomIdx:null;
-  document.getElementById('scan-hint').textContent=mode==='expense'?'Cadrez la facture ou le ticket de caisse':'Cadrez le document à photographier';
+  const isPhotoMode=['edl-photo','phase-photo'].includes(mode);
+  const scanHints={
+    'expense':'Cadrez la facture ou le ticket de caisse',
+    'tenant-doc':'Cadrez le document à photographier',
+    'edl-photo':'Photographiez la pièce ou le mobilier',
+    'phase-photo':'Photographiez l\'avancement des travaux'
+  };
+  document.getElementById('scan-hint').textContent=scanHints[mode]||'Cadrez le document';
+  document.getElementById('scan-title').textContent=isPhotoMode?'📷 Photo':'🔍 Scanner';
+  document.getElementById('scanner-overlay').classList.toggle('photo-mode',isPhotoMode);
   try{
     const stream=await navigator.mediaDevices.getUserMedia({
       video:{
@@ -1119,17 +1134,19 @@ function capturePhoto(){
   canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');
   ctx.drawImage(video,0,0,W,H);
-  // Auto-levels: stretch histogram for better contrast
-  const id=ctx.getImageData(0,0,W,H);const d=id.data;
-  let lo=255,hi=0;
-  for(let i=0;i<d.length;i+=4){const v=(d[i]+d[i+1]+d[i+2])/3;if(v<lo)lo=v;if(v>hi)hi=v;}
-  const range=Math.max(hi-lo,1);
-  for(let i=0;i<d.length;i+=4){
-    d[i]=Math.min(255,Math.round((d[i]-lo)/range*255));
-    d[i+1]=Math.min(255,Math.round((d[i+1]-lo)/range*255));
-    d[i+2]=Math.min(255,Math.round((d[i+2]-lo)/range*255));
+  // Auto-levels uniquement pour les documents (factures, pièces justificatives)
+  if(['expense','tenant-doc'].includes(scanMode)){
+    const id=ctx.getImageData(0,0,W,H);const d=id.data;
+    let lo=255,hi=0;
+    for(let i=0;i<d.length;i+=4){const v=(d[i]+d[i+1]+d[i+2])/3;if(v<lo)lo=v;if(v>hi)hi=v;}
+    const range=Math.max(hi-lo,1);
+    for(let i=0;i<d.length;i+=4){
+      d[i]=Math.min(255,Math.round((d[i]-lo)/range*255));
+      d[i+1]=Math.min(255,Math.round((d[i+1]-lo)/range*255));
+      d[i+2]=Math.min(255,Math.round((d[i+2]-lo)/range*255));
+    }
+    ctx.putImageData(id,0,0);
   }
-  ctx.putImageData(id,0,0);
   const full=canvas.toDataURL('image/jpeg',0.93);
   closeScanner();
   // Storage resize: max 1000px, quality 0.88
