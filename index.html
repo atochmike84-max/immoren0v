@@ -2371,8 +2371,7 @@ function generateEDLPdf(id){
   @page{size:A4;margin:20mm 15mm}
   *{box-sizing:border-box}
   body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1a1d27;margin:0;padding:0}
-  .no-print{display:none}
-  @media print{.no-print{display:none}}
+  @media print{.no-print{display:none!important}}
 </style></head>
 <body>
 <!-- Bouton impression (masqué à l'impression) -->
