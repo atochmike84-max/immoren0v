@@ -796,7 +796,10 @@ body.light .lcard{background:var(--bg2)}
     <div class="scan-top">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div id="scan-title" style="color:#fff;font-size:14px;font-weight:700">📷 Scanner</div>
-        <button onclick="closeScanner()" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:14px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="torch-btn" onclick="toggleTorch()" title="Torche" style="display:none;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:16px;width:32px;height:32px;border-radius:50%;cursor:pointer;align-items:center;justify-content:center">💡</button>
+          <button onclick="closeScanner()" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:14px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+        </div>
       </div>
     </div>
     <div class="scan-mid">
@@ -904,7 +907,7 @@ let STATE={properties:{},partners:[]};
 let SES=null,curId=null,curTab='dashboard';
 let saveTimer=null,lastSaved=null,fbUnsub=null,presIv=null,onIv=null,isDark=true;
 let scanMode='expense',scanTenantId=null,scanPhaseId=null,scanEDLId=null,scanRoomIdx=null;
-let scannerStream=null;
+let scannerStream=null,scanTorchOn=false;
 
 // ══ UTILS ══
 const fmt=n=>n!=null?(+n).toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}):'—';
@@ -1101,6 +1104,10 @@ async function openScanner(mode,opts={}){
   document.getElementById('scan-hint').textContent=scanHints[mode]||'Cadrez le document';
   document.getElementById('scan-title').textContent=isPhotoMode?'📷 Photo':'🔍 Scanner';
   document.getElementById('scanner-overlay').classList.toggle('photo-mode',isPhotoMode);
+  // Show torch button only in photo mode
+  const torchBtn=document.getElementById('torch-btn');
+  torchBtn.style.display=isPhotoMode?'flex':'none';
+  scanTorchOn=false;torchBtn.textContent='💡';
   try{
     const stream=await navigator.mediaDevices.getUserMedia({
       video:{
@@ -1111,9 +1118,15 @@ async function openScanner(mode,opts={}){
     });
     scannerStream=stream;
     const v=document.getElementById('scanner-video');v.srcObject=stream;
-    // Apply auto white balance via track settings
     const track=stream.getVideoTracks()[0];
-    try{await track.applyConstraints({advanced:[{whiteBalanceMode:'auto'},{exposureMode:'auto'},{focusMode:'continuous'}]});}catch{}
+    // Photo mode: balance des blancs + exposition continues pour rendu fidèle
+    // Doc mode: WB auto (réglage ponctuel), meilleure lisibilité texte
+    if(isPhotoMode){
+      try{await track.applyConstraints({advanced:[{whiteBalanceMode:'continuous'},{exposureMode:'continuous'},{focusMode:'continuous'},{brightnessMode:'auto'}]});}catch{}
+      try{await track.applyConstraints({advanced:[{whiteBalanceMode:'continuous'},{exposureMode:'continuous'},{focusMode:'continuous'}]});}catch{}
+    }else{
+      try{await track.applyConstraints({advanced:[{whiteBalanceMode:'auto'},{exposureMode:'auto'},{focusMode:'continuous'}]});}catch{}
+    }
     document.getElementById('scanner-overlay').classList.add('on');
   }catch{
     try{
@@ -1122,6 +1135,17 @@ async function openScanner(mode,opts={}){
       document.getElementById('scanner-overlay').classList.add('on');
     }catch{closeScanner();fallbackFile();}
   }
+}
+async function toggleTorch(){
+  if(!scannerStream)return;
+  const track=scannerStream.getVideoTracks()[0];
+  scanTorchOn=!scanTorchOn;
+  try{
+    await track.applyConstraints({advanced:[{torch:scanTorchOn}]});
+    const btn=document.getElementById('torch-btn');
+    btn.textContent=scanTorchOn?'🔦':'💡';
+    btn.style.background=scanTorchOn?'rgba(255,220,50,.35)':'rgba(255,255,255,.18)';
+  }catch{toast('Torche non disponible sur cet appareil','warn');}
 }
 function closeScanner(){
   if(scannerStream){scannerStream.getTracks().forEach(t=>t.stop());scannerStream=null;}
@@ -2088,35 +2112,213 @@ function saveEDL(id){
   const date=document.getElementById('f-date').value;
   const tenantName=document.getElementById('f-ten').value.trim();
   const selRooms=[...document.querySelectorAll('#rooms-list button')].filter(b=>b.style.color.includes('gold')||b.style.border.includes('gold')).map(b=>b.dataset.room);
-  const rooms=selRooms.map(name=>({name,etat:'Bon état',notes:'',photos:[]}));
+  const DEF_ELEM=()=>({sol:{etat:'Bon état',notes:''},murs:{etat:'Bon état',notes:''},plafond:{etat:'Bon état',notes:''},fenetres:{etat:'Bon état',notes:''}});
+  const rooms=selRooms.map(name=>({name,etat:'Bon état',notes:'',photos:[],elements:DEF_ELEM(),furniture:{}}));
   const item={type,date,tenantName,rooms};
-  if(id){const old=p.edls.find(e=>e.id===id);p.edls=p.edls.map(e=>e.id===id?{...item,id,rooms:old.rooms}:e);}
+  if(id){
+    const old=p.edls.find(e=>e.id===id);
+    // Merge rooms: preserve existing data, add new rooms with defaults
+    const mergedRooms=rooms.map(nr=>{
+      const ex=old.rooms.find(or=>or.name===nr.name);
+      return ex?{...nr,...ex,name:nr.name}:nr;
+    });
+    p.edls=p.edls.map(e=>e.id===id?{...item,id,rooms:mergedRooms}:e);
+  }
   else{p.edls.push({...item,id:Date.now()});addLog(`a créé EDL ${type==='entry'?'entrée':'sortie'} pour ${tenantName}`);}
   closeMod();renderTab('edl');scheduleSave();toast('État des lieux créé ✓','ok');
 }
 function openEDLDetail(id){
   const p=P();if(!p)return;ensure(p);
   const e=p.edls.find(x=>x.id===id);if(!e)return;
+  const ELEMS=[{k:'sol',ic:'🟫',lb:'Sol'},{k:'murs',ic:'🧱',lb:'Murs'},{k:'plafond',ic:'⬜',lb:'Plafond'},{k:'fenetres',ic:'🪟',lb:'Fenêtres'}];
+  const etatSel=(val,onChange)=>`<select onchange="${onChange}" style="background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:3px 6px;color:var(--t1);font-size:10px;font-family:inherit;max-width:90px">${EDL_ETAT.map(s=>`<option value="${s}" ${val===s?'selected':''}>${s}</option>`).join('')}</select>`;
   setMod(`${e.type==='entry'?'📥 Entrée':'📤 Sortie'} · ${e.tenantName}`,`
     <div style="color:var(--t4);font-size:12px;margin-bottom:14px">${fmtD(e.date)}</div>
-    ${e.rooms.map((r,ri)=>`
-      <div class="edl-room">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="color:var(--t1);font-weight:700">${r.name}</div>
-          <select onchange="updateEDLRoom(${id},${ri},'etat',this.value)" style="background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;color:var(--t1);font-size:11px;font-family:inherit">
-            ${EDL_ETAT.map(s=>`<option value="${s}" ${r.etat===s?'selected':''}>${s}</option>`).join('')}
-          </select>
-        </div>
-        <textarea placeholder="Notes, observations..." style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:8px;color:var(--t1);font-size:12px;font-family:inherit;resize:none;min-height:44px" oninput="updateEDLRoom(${id},${ri},'notes',this.value)">${r.notes||''}</textarea>
-        <div style="margin-top:8px">
-          <div class="edl-photos">
-            ${(r.photos||[]).map(ph=>`<img class="edl-photo" src="${ph}" onclick="viewPhoto('${ph}')">`).join('')}
-            <div class="edl-photo-add" onclick="scanEDLId=${id};scanRoomIdx=${ri};openScanner('edl-photo')">📷</div>
+    ${e.rooms.map((r,ri)=>{
+      // Ensure defaults exist for old EDLs without elements
+      if(!r.elements)r.elements={sol:{etat:'Bon état',notes:''},murs:{etat:'Bon état',notes:''},plafond:{etat:'Bon état',notes:''},fenetres:{etat:'Bon état',notes:''}};
+      if(!r.furniture)r.furniture={};
+      const invItems=p.inventory.filter(it=>it.room===r.name);
+      return`<div class="edl-room">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="color:var(--t1);font-weight:700;font-size:14px">${r.name}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="color:var(--t4);font-size:10px">Global :</span>
+            ${etatSel(r.etat,`updateEDLRoom(${id},${ri},'etat',this.value)`)}
           </div>
         </div>
-      </div>`).join('')}
-    <button class="btn btn-full" onclick="closeMod();scheduleSave()">✓ Enregistrer</button>`);
+        <!-- Éléments structurels -->
+        <div style="background:var(--bg3);border-radius:9px;padding:9px;margin-bottom:8px">
+          <div style="color:var(--t4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">Éléments</div>
+          ${ELEMS.map(el=>`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+              <span style="font-size:14px;flex-shrink:0">${el.ic}</span>
+              <span style="color:var(--t2);font-size:12px;font-weight:600;flex:1">${el.lb}</span>
+              ${etatSel((r.elements[el.k]||{}).etat||'Bon état',`updateEDLElement(${id},${ri},'${el.k}','etat',this.value)`)}
+            </div>
+            <input placeholder="Observations ${el.lb.toLowerCase()}..." value="${((r.elements[el.k]||{}).notes||'').replace(/"/g,'&quot;')}" oninput="updateEDLElement(${id},${ri},'${el.k}','notes',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;color:var(--t1);font-size:11px;font-family:inherit;margin-bottom:6px">`).join('')}
+        </div>
+        <!-- Mobilier inventorié dans cette pièce -->
+        ${invItems.length?`
+        <div style="background:var(--bg3);border-radius:9px;padding:9px;margin-bottom:8px">
+          <div style="color:var(--t4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">Mobilier (${invItems.length})</div>
+          ${invItems.map(it=>`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              ${it.photo?`<img src="${it.photo}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0">`:
+                `<div style="width:32px;height:32px;border-radius:6px;background:var(--bg);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🛋</div>`}
+              <div style="flex:1;min-width:0">
+                <div style="color:var(--t1);font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.name}${it.brand?' · <span style="color:var(--t4);font-weight:400">'+it.brand+'</span>':''}</div>
+                <div style="color:var(--t4);font-size:10px">Inventaire : ${it.state||'—'}</div>
+              </div>
+              ${etatSel((r.furniture[it.id]||{}).etat||'Bon état',`updateEDLFurniture(${id},${ri},${it.id},'etat',this.value)`)}
+            </div>
+            <input placeholder="Observations ${it.name}..." value="${((r.furniture[it.id]||{}).notes||'').replace(/"/g,'&quot;')}" oninput="updateEDLFurniture(${id},${ri},${it.id},'notes',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;color:var(--t1);font-size:11px;font-family:inherit;margin-bottom:3px">`).join('')}
+        </div>`:''}
+        <!-- Notes générales + photos -->
+        <textarea placeholder="Notes générales de la pièce..." style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:8px;color:var(--t1);font-size:12px;font-family:inherit;resize:none;min-height:44px;margin-bottom:8px" oninput="updateEDLRoom(${id},${ri},'notes',this.value)">${r.notes||''}</textarea>
+        <div class="edl-photos">
+          ${(r.photos||[]).map(ph=>`<img class="edl-photo" src="${ph}" onclick="viewPhoto('${ph}')">`).join('')}
+          <div class="edl-photo-add" onclick="scanEDLId=${id};scanRoomIdx=${ri};openScanner('edl-photo')">📷</div>
+        </div>
+      </div>`;}).join('')}
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-full" onclick="closeMod();scheduleSave()">✓ Enregistrer</button>
+      <button class="btn-g btn-full" style="flex:1;padding:14px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer" onclick="generateEDLPdf(${id})">📄 PDF</button>
+    </div>`);
   openMod();
+}
+function generateEDLPdf(id){
+  const p=P();if(!p)return;
+  const e=p.edls.find(x=>x.id===id);if(!e)return;
+  const ELEMS=[{k:'sol',lb:'Sol'},{k:'murs',lb:'Murs'},{k:'plafond',lb:'Plafond'},{k:'fenetres',lb:'Fenêtres'}];
+  const etatColor={Neuf:'#1a7a1a','Très bon':'#2e7d32','Bon état':'#388e3c',Correct:'#f57f17','Usure normale':'#e65100',Dégradé:'#c62828','À rénover':'#b71c1c'};
+  const ec=v=>etatColor[v]||'#555';
+  const invMap={};(p.inventory||[]).forEach(it=>{invMap[it.id]=it;});
+  const roomsHtml=e.rooms.map(r=>{
+    const elems=r.elements||{};
+    const furn=r.furniture||{};
+    const invItems=(p.inventory||[]).filter(it=>it.room===r.name);
+    const elemRows=ELEMS.map(el=>{
+      const d=elems[el.k]||{etat:'—',notes:''};
+      return`<tr><td style="padding:5px 8px;border:1px solid #ddd;font-weight:600;background:#fafafa">${el.lb}</td><td style="padding:5px 8px;border:1px solid #ddd;color:${ec(d.etat)};font-weight:700">${d.etat||'—'}</td><td style="padding:5px 8px;border:1px solid #ddd;color:#555;font-size:10px">${d.notes||''}</td></tr>`;
+    }).join('');
+    const furnitureRows=invItems.length?invItems.map(it=>{
+      const fd=furn[it.id]||{};
+      return`<tr><td style="padding:5px 8px;border:1px solid #ddd">${it.name}${it.brand?' ('+it.brand+')':''}</td><td style="padding:5px 8px;border:1px solid #ddd;color:#888;font-size:10px">Inventaire: ${it.state||'—'}</td><td style="padding:5px 8px;border:1px solid #ddd;color:${ec(fd.etat||it.state)};font-weight:700">${fd.etat||'—'}</td><td style="padding:5px 8px;border:1px solid #ddd;color:#555;font-size:10px">${fd.notes||''}</td></tr>`;
+    }).join(''):'';
+    const photosHtml=(r.photos||[]).length?`<div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase">Photos (${r.photos.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${r.photos.map(ph=>`<img src="${ph}" style="width:100px;height:75px;object-fit:cover;border-radius:4px;border:1px solid #ddd">`).join('')}</div></div>`:'';
+    return`<div style="page-break-inside:avoid;margin-bottom:18px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
+      <div style="background:#1a1d27;color:#fff;padding:9px 14px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:13px">${r.name}</span>
+        <span style="font-size:11px;background:${ec(r.etat)}22;color:${ec(r.etat)};padding:2px 10px;border-radius:20px;border:1px solid ${ec(r.etat)}">${r.etat||'—'}</span>
+      </div>
+      <div style="padding:10px 14px">
+        <table style="width:100%;border-collapse:collapse;margin-bottom:8px;font-size:11px">
+          <thead><tr><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;text-align:left;font-size:10px;text-transform:uppercase">Élément</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;text-align:left;font-size:10px;text-transform:uppercase">État</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;text-align:left;font-size:10px;text-transform:uppercase">Observations</th></tr></thead>
+          <tbody>${elemRows}</tbody>
+        </table>
+        ${invItems.length?`<div style="font-size:10px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase">Mobilier</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:8px;font-size:11px">
+          <thead><tr><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;text-align:left;font-size:10px;text-transform:uppercase">Article</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;font-size:10px;text-transform:uppercase">État inventaire</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;font-size:10px;text-transform:uppercase">État constaté</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;font-size:10px;text-transform:uppercase">Observations</th></tr></thead>
+          <tbody>${furnitureRows}</tbody>
+        </table>`:''}
+        ${r.notes?`<div style="font-size:11px;color:#444;background:#fffde7;border-left:3px solid #f39c12;padding:7px 10px;border-radius:3px;margin-bottom:8px"><strong>Notes :</strong> ${r.notes}</div>`:''}
+        ${photosHtml}
+      </div>
+    </div>`;
+  }).join('');
+  const now=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  const html=`<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><title>État des Lieux — ${e.tenantName} — ${fmtD(e.date)}</title>
+<style>
+  @page{size:A4;margin:20mm 15mm}
+  *{box-sizing:border-box}
+  body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1a1d27;margin:0;padding:0}
+  .no-print{display:none}
+  @media print{.no-print{display:none}}
+</style></head>
+<body>
+<!-- Bouton impression (masqué à l'impression) -->
+<div class="no-print" style="position:fixed;top:0;left:0;right:0;background:#1a1d27;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999">
+  <button onclick="window.print()" style="background:#c9a96e;border:none;color:#080b12;font-weight:800;padding:10px 22px;border-radius:8px;font-size:13px;cursor:pointer">🖨️ Imprimer / Enregistrer PDF</button>
+  <button onclick="window.close()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;cursor:pointer">✕ Fermer</button>
+  <span style="color:rgba(255,255,255,.6);font-size:12px">→ Dans la boîte de dialogue, choisissez "Enregistrer en PDF" pour obtenir le fichier.</span>
+</div>
+<div style="padding-top:52px">
+<!-- EN-TÊTE -->
+<div style="border-bottom:3px solid #1a1d27;padding-bottom:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-start">
+  <div>
+    <div style="font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#1a1d27">État des Lieux</div>
+    <div style="font-size:14px;font-weight:700;color:${e.type==='entry'?'#2e7d32':'#c62828'};margin-top:3px">${e.type==='entry'?'▶ Entrée':'◀ Sortie'}</div>
+    <div style="font-size:11px;color:#666;margin-top:3px">Établi le ${fmtD(e.date)}</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:11px;color:#888;text-transform:uppercase;font-weight:700">Réf. EDL</div>
+    <div style="font-size:12px;font-weight:700;color:#1a1d27">#${id}</div>
+  </div>
+</div>
+<!-- PARTIES -->
+<div style="display:flex;gap:14px;margin-bottom:18px">
+  <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:12px">
+    <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px">Bailleur / Bien</div>
+    <div style="font-weight:700;font-size:13px">${p.info.name}</div>
+    <div style="color:#555;margin-top:3px">${p.info.address||'—'}</div>
+    <div style="color:#888;font-size:10px;margin-top:2px">${p.info.type||''}</div>
+  </div>
+  <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:12px">
+    <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px">Locataire</div>
+    <div style="font-weight:700;font-size:13px">${e.tenantName}</div>
+    <div style="color:#888;font-size:10px;margin-top:4px">État des lieux d'${e.type==='entry'?'entrée':'sortie'} — ${fmtD(e.date)}</div>
+  </div>
+</div>
+<!-- RÉSUMÉ -->
+<div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:6px;padding:10px 14px;margin-bottom:18px;display:flex;gap:20px">
+  <div><span style="color:#888;font-size:10px;text-transform:uppercase">Pièces inspectées</span><br><strong>${e.rooms.length}</strong></div>
+  <div><span style="color:#888;font-size:10px;text-transform:uppercase">Photos</span><br><strong>${e.rooms.reduce((s,r)=>s+(r.photos||[]).length,0)}</strong></div>
+  <div><span style="color:#888;font-size:10px;text-transform:uppercase">Articles inventaire</span><br><strong>${(p.inventory||[]).length}</strong></div>
+  <div><span style="color:#888;font-size:10px;text-transform:uppercase">Document généré le</span><br><strong>${now}</strong></div>
+</div>
+<!-- PIÈCES -->
+<div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #1a1d27;padding-bottom:6px;margin-bottom:14px">Constat pièce par pièce</div>
+${roomsHtml}
+<!-- SIGNATURES -->
+<div style="page-break-inside:avoid;margin-top:30px;border-top:2px solid #1a1d27;padding-top:18px">
+  <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;margin-bottom:18px">Signatures</div>
+  <div style="display:flex;gap:30px">
+    <div style="flex:1">
+      <div style="font-size:11px;font-weight:700;margin-bottom:4px">Le Bailleur</div>
+      <div style="font-size:10px;color:#888;margin-bottom:30px">Lu et approuvé</div>
+      <div style="border-bottom:1px solid #999;margin-bottom:5px;height:50px"></div>
+      <div style="font-size:10px;color:#888">Signature · Date : _______________</div>
+    </div>
+    <div style="flex:1">
+      <div style="font-size:11px;font-weight:700;margin-bottom:4px">Le Locataire — ${e.tenantName}</div>
+      <div style="font-size:10px;color:#888;margin-bottom:30px">Lu et approuvé</div>
+      <div style="border-bottom:1px solid #999;margin-bottom:5px;height:50px"></div>
+      <div style="font-size:10px;color:#888">Signature · Date : _______________</div>
+    </div>
+  </div>
+  <div style="margin-top:20px;font-size:9px;color:#aaa;text-align:center">Document généré par ImmoRénov · ${now} · Réf. #${id} · Ce document doit être signé par les deux parties pour avoir valeur légale.</div>
+</div>
+</div>
+</body></html>`;
+  const win=window.open('','_blank');
+  if(!win){toast('Autorisez les popups pour générer le PDF','warn');return;}
+  win.document.write(html);win.document.close();
+}
+function updateEDLElement(edlId,roomIdx,elemKey,field,val){
+  const p=P();if(!p)return;ensure(p);
+  const e=p.edls.find(x=>x.id===edlId);if(!e||!e.rooms[roomIdx])return;
+  if(!e.rooms[roomIdx].elements)e.rooms[roomIdx].elements={};
+  if(!e.rooms[roomIdx].elements[elemKey])e.rooms[roomIdx].elements[elemKey]={etat:'Bon état',notes:''};
+  e.rooms[roomIdx].elements[elemKey][field]=val;scheduleSave();
+}
+function updateEDLFurniture(edlId,roomIdx,itemId,field,val){
+  const p=P();if(!p)return;ensure(p);
+  const e=p.edls.find(x=>x.id===edlId);if(!e||!e.rooms[roomIdx])return;
+  if(!e.rooms[roomIdx].furniture)e.rooms[roomIdx].furniture={};
+  if(!e.rooms[roomIdx].furniture[itemId])e.rooms[roomIdx].furniture[itemId]={etat:'Bon état',notes:''};
+  e.rooms[roomIdx].furniture[itemId][field]=val;scheduleSave();
 }
 function updateEDLRoom(edlId,roomIdx,field,val){
   const p=P();if(!p)return;ensure(p);
