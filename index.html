@@ -1696,7 +1696,7 @@ function rWorks(el){
         <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Dépensé</div><div style="font-size:13px;font-weight:700;color:${x.spent>x.budget?'var(--red)':'var(--green)'}">${fmt(x.spent)}</div></div>
         <div style="flex:1"><div class="pb" style="height:5px"><div class="pf" style="width:${Math.min(100,x.budget>0?x.spent/x.budget*100:0)}%;background:${x.color}"></div></div></div>
       </div>
-      ${(x.photos||[]).length?`<div style="display:flex;gap:5px;overflow-x:auto;margin-bottom:9px">${x.photos.slice(0,5).map(ph=>`<img src="${ph}" style="height:58px;width:58px;object-fit:cover;border-radius:7px;flex-shrink:0;border:1px solid var(--bd);cursor:pointer" onclick="viewPhoto('${ph}')">`).join('')}</div>`:''}
+      ${(x.photos||[]).length?`<div style="display:flex;gap:5px;overflow-x:auto;margin-bottom:9px">${x.photos.slice(0,5).map(ph=>`<img src="${ph}" style="height:58px;width:58px;object-fit:cover;border-radius:7px;flex-shrink:0;border:1px solid var(--bd);cursor:pointer" data-ph="${ph}" onclick="viewPhoto(this.dataset.ph)">`).join('')}</div>`:''}
       <div style="display:flex;gap:6px">
         <button class="btn-g btn-sm" style="flex:1" onclick="openPhaseModal(${x.id})">✎ Modifier</button>
         <button class="btn-scan btn-sm" onclick="scanPhaseId=${x.id};openScanner('phase-photo')">📷</button>
@@ -2101,7 +2101,7 @@ function renderExpList(list){
   if(!list.length)return'<div class="empty">Aucune dépense — scannez une facture !</div>';
   return list.map(e=>`
     <div style="display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--bd2)">
-      <div style="width:38px;height:38px;border-radius:9px;overflow:hidden;flex-shrink:0;background:${PAYER_CL[e.paidBy]||'#888'}18;border:1px solid ${PAYER_CL[e.paidBy]||'#888'}33;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:${e.photo?'pointer':'default'}" ${e.photo?`onclick="viewPhoto('${e.photo}')"`:''}>
+      <div style="width:38px;height:38px;border-radius:9px;overflow:hidden;flex-shrink:0;background:${PAYER_CL[e.paidBy]||'#888'}18;border:1px solid ${PAYER_CL[e.paidBy]||'#888'}33;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:${e.photo?'pointer':'default'}" ${e.photo?`data-ph="${e.photo}" onclick="viewPhoto(this.dataset.ph)"`:''}>
         ${e.photo?`<img src="${e.photo}" style="width:100%;height:100%;object-fit:cover">`:PAYER_IC[e.paidBy]||'?'}
       </div>
       <div style="flex:1;min-width:0">
@@ -2128,7 +2128,7 @@ function openExpenseModal(id=null,photo=null){
   const f=e?{...e}:{label:'',date:today(),amount:'',paidBy:'moi',category:'Travaux',notes:'',recurring:false,recurringFreq:'monthly',nextDate:''};
   const photoSrc=photo||(e?.photo||null);
   setMod(id?'Modifier la dépense':'Nouvelle dépense',`
-    ${photoSrc?`<div style="margin-bottom:12px;cursor:pointer" onclick="viewPhoto('${photoSrc}')"><img src="${photoSrc}" style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--bd)"><div style="color:var(--t4);font-size:11px;text-align:center;margin-top:4px">📷 Appuyer pour agrandir</div></div>`:''}
+    ${photoSrc?`<div style="margin-bottom:12px;cursor:pointer" data-ph="${photoSrc}" onclick="viewPhoto(this.dataset.ph)"><img src="${photoSrc}" style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--bd)"><div style="color:var(--t4);font-size:11px;text-align:center;margin-top:4px">📷 Appuyer pour agrandir</div></div>`:''}
     <div class="field"><label>Libellé</label><input class="inp" id="f-label" value="${f.label}" placeholder="ex: Plinthe cuisine, Ampoules..."></div>
     <div class="g2">
       <div class="field"><label>Montant €</label><input class="inp" id="f-amt" type="number" step="0.01" value="${f.amount}" placeholder="0.00"></div>
@@ -2254,6 +2254,7 @@ function saveEDL(id){
   const item={type,date,tenantName,rooms};
   if(id){
     const old=p.edls.find(e=>e.id===id);
+    if(!old){toast('EDL introuvable','warn');return;}
     // Merge rooms: preserve existing data, add new rooms with defaults
     const mergedRooms=rooms.map(nr=>{
       const ex=old.rooms.find(or=>or.name===nr.name);
@@ -2314,7 +2315,7 @@ function openEDLDetail(id){
         <!-- Notes générales + photos -->
         <textarea placeholder="Notes générales de la pièce..." style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:8px;color:var(--t1);font-size:12px;font-family:inherit;resize:none;min-height:44px;margin-bottom:8px" oninput="updateEDLRoom(${id},${ri},'notes',this.value)">${r.notes||''}</textarea>
         <div class="edl-photos">
-          ${(r.photos||[]).map(ph=>`<img class="edl-photo" src="${ph}" onclick="viewPhoto('${ph}')">`).join('')}
+          ${(r.photos||[]).map(ph=>`<img class="edl-photo" src="${ph}" data-ph="${ph}" onclick="viewPhoto(this.dataset.ph)">`).join('')}
           <div class="edl-photo-add" onclick="scanEDLId=${id};scanRoomIdx=${ri};openScanner('edl-photo')">📷</div>
         </div>
       </div>`;}).join('')}
@@ -2330,7 +2331,6 @@ function generateEDLPdf(id){
   const ELEMS=[{k:'sol',lb:'Sol'},{k:'murs',lb:'Murs'},{k:'plafond',lb:'Plafond'},{k:'fenetres',lb:'Fenêtres'}];
   const etatColor={Neuf:'#1a7a1a','Très bon':'#2e7d32','Bon état':'#388e3c',Correct:'#f57f17','Usure normale':'#e65100',Dégradé:'#c62828','À rénover':'#b71c1c'};
   const ec=v=>etatColor[v]||'#555';
-  const invMap={};(p.inventory||[]).forEach(it=>{invMap[it.id]=it;});
   const roomsHtml=e.rooms.map(r=>{
     const elems=r.elements||{};
     const furn=r.furniture||{};
@@ -2493,7 +2493,7 @@ function rInventory(el){
       <div class="sl">${room} (${items.length})</div>
       ${items.map(it=>`
         <div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--bd2)">
-          ${it.photo?`<img src="${it.photo}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer;border:1px solid var(--bd)" onclick="viewPhoto('${it.photo}')">`:
+          ${it.photo?`<img src="${it.photo}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer;border:1px solid var(--bd)" data-ph="${it.photo}" onclick="viewPhoto(this.dataset.ph)">`:
             `<div style="width:40px;height:40px;border-radius:8px;background:var(--bg3);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🛋</div>`}
           <div style="flex:1;min-width:0">
             <div style="color:var(--t1);font-size:13px;font-weight:600">${it.name}</div>
@@ -2516,7 +2516,7 @@ function openInvModal(id){
   const f=it?{...it}:{name:'',room:'Salon',brand:'',state:'Bon état',value:'',serial:'',notes:'',photo:''};
   const rooms=['Salon','Cuisine','Chambre 1','Chambre 2','Salle de bain','WC','Entrée','Autre'];
   setMod(id?'Modifier':'Nouvel article',`
-    ${f.photo?`<img src="${f.photo}" style="width:100%;max-height:120px;object-fit:cover;border-radius:9px;margin-bottom:12px;cursor:pointer" onclick="viewPhoto('${f.photo}')">`:
+    ${f.photo?`<img src="${f.photo}" style="width:100%;max-height:120px;object-fit:cover;border-radius:9px;margin-bottom:12px;cursor:pointer" data-ph="${f.photo}" onclick="viewPhoto(this.dataset.ph)">`:
       `<div onclick="openInvPhoto()" style="border:2px dashed var(--bd);border-radius:9px;padding:14px;text-align:center;cursor:pointer;margin-bottom:12px"><div style="font-size:24px">📷</div><div style="color:var(--t4);font-size:12px;margin-top:3px">Ajouter une photo</div></div>`}
     <input type="hidden" id="f-photo" value="${f.photo||''}">
     <div class="g2"><div class="field"><label>Nom de l'article</label><input class="inp" id="f-name" value="${f.name}" placeholder="Canapé 3 places"></div><div class="field"><label>Pièce</label><select class="inp" id="f-room">${rooms.map(r=>`<option value="${r}" ${f.room===r?'selected':''}>${r}</option>`).join('')}</select></div></div>
