@@ -361,7 +361,6 @@ select option{background:var(--bg2)}
 </div>
 
 <script>
-<script>
 // ══ CRYPTO ══
 async function deriveKey(pw){
   const e=new TextEncoder();
@@ -531,6 +530,8 @@ async function doLogin(){
     SES={cryptoKey,username:name,projectId:pid};
     if(!STATE.partners)STATE.partners=[];
     if(!STATE.partners.includes(name))STATE.partners.push(name);
+    // Persistance session
+    try{localStorage.setItem('ir-session',JSON.stringify({name,pid,code}));}catch{}
     showPage('portfolio-page');
     document.getElementById('pf-proj').textContent=pid;
     document.getElementById('pf-user').textContent='Connecté : '+name;
@@ -545,6 +546,7 @@ async function doLogin(){
 function showErr(m){const e=document.getElementById('l-err');e.textContent=m;e.style.display='block';}
 function logout(){
   if(fbUnsub)fbUnsub();clearInterval(presIv);clearInterval(onIv);closeScanner();
+  try{localStorage.removeItem('ir-session');}catch{}
   SES=null;curId=null;showPage('login-page');
 }
 
@@ -864,9 +866,6 @@ function delItem(col,id){
   renderTab(curTab);scheduleSave();toast('Supprimé');
 }
 function viewPhoto(src){setMod('Photo',`<img src="${src}" style="width:100%;border-radius:10px">`);openMod();}
-</script>
-</script>
-<script>
 // ══ DASHBOARD ══
 function rDash(el){
   const p=P();if(!p)return;ensure(p);
@@ -1296,7 +1295,6 @@ function toggleRent(id){
   addLog(`a marqué loyer ${r.month} ${nowPaid?'payé':'impayé'}`);
   renderTab('rents');scheduleSave();updateReminderBadge();toast(nowPaid?'Loyer marqué payé ✓':'Marqué impayé','ok');
 }
-</script>
 // ══ CHARGES ══
 function rCharges(el){
   const p=P();if(!p)return;ensure(p);
@@ -1900,6 +1898,48 @@ function runSim(){
 }
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 initTheme();
+
+// ══ AUTO-LOGIN (persistance session) ══
+(async()=>{
+  try{
+    const raw=localStorage.getItem('ir-session');
+    if(!raw)return;
+    const{name,pid,code}=JSON.parse(raw);
+    if(!name||!pid||!code)return;
+    document.getElementById('l-name').value=name;
+    document.getElementById('l-proj').value=pid;
+    document.getElementById('l-code').value=code;
+    const btn=document.getElementById('l-btn');
+    btn.textContent='Reconnexion...';btn.disabled=true;
+    try{
+      const cryptoKey=await deriveKey(code);
+      if(window._fbOK){
+        try{
+          const{doc,getDoc}=window._fb;
+          const snap=await getDoc(doc(window._db,'projects',pid));
+          if(snap.exists()){
+            const d=await aesDec(snap.data().data,cryptoKey);
+            if(d===null){localStorage.removeItem('ir-session');btn.textContent='Accéder →';btn.disabled=false;return;}
+            STATE=d;
+            Object.values(STATE.properties).forEach(p=>ensure(p));
+            if(!STATE.partners)STATE.partners=[];
+          }
+        }catch{}
+      }
+      SES={cryptoKey,username:name,projectId:pid};
+      if(!STATE.partners)STATE.partners=[];
+      if(!STATE.partners.includes(name))STATE.partners.push(name);
+      showPage('portfolio-page');
+      document.getElementById('pf-proj').textContent=pid;
+      document.getElementById('pf-user').textContent='Connecté : '+name;
+      startListener();startPresence();
+      if(!window._fbOK)setSync('local','pf-sync');
+      renderPortfolio();updateReminderBadge();
+      toast('✓ Reconnecté automatiquement','ok');
+    }catch{localStorage.removeItem('ir-session');}
+    btn.textContent='Accéder →';btn.disabled=false;
+  }catch{}
+})();
 </script>
 </body>
 </html>
