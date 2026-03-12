@@ -633,6 +633,62 @@ body.light .hdr{background:rgba(255,255,255,.92)}
 .more-lbl{font-size:9.5px;font-weight:700;color:var(--t3);letter-spacing:.03em;text-transform:uppercase;text-align:center}
 .more-item.on .more-lbl{color:var(--gold)}
 
+/* ── MÉDIATHÈQUE ── */
+#photos-overlay{
+  display:none;position:fixed;inset:0;z-index:400;
+  background:var(--bg);flex-direction:column;
+}
+#photos-overlay.on{display:flex}
+.ph-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 18px 10px;
+  background:var(--bg2);border-bottom:1px solid var(--bd);
+  flex-shrink:0;
+}
+.ph-filters{
+  display:flex;gap:7px;overflow-x:auto;
+  padding:10px 18px;flex-shrink:0;
+  background:var(--bg2);
+  scrollbar-width:none;
+}
+.ph-filters::-webkit-scrollbar{display:none}
+.ph-pill{
+  flex-shrink:0;padding:6px 13px;border-radius:99px;
+  border:1.5px solid var(--bd);background:var(--bg3);
+  color:var(--t3);font-size:12px;font-weight:700;
+  cursor:pointer;font-family:inherit;transition:all .15s;
+  white-space:nowrap;
+}
+.ph-pill.on{border-color:var(--gold);background:rgba(201,169,110,.15);color:var(--gold)}
+.ph-grid{
+  flex:1;overflow-y:auto;padding:12px;
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:4px;align-content:start;
+}
+.ph-item{
+  position:relative;aspect-ratio:1;overflow:hidden;
+  border-radius:6px;cursor:pointer;background:var(--bg3);
+}
+.ph-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.ph-item:active img{transform:scale(.95)}
+.ph-label{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(to top,rgba(0,0,0,.82),transparent);
+  padding:16px 5px 4px;
+  font-size:9px;font-weight:700;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-align:center;
+}
+.ph-cat-badge{
+  position:absolute;top:4px;left:4px;
+  font-size:8px;font-weight:800;padding:2px 6px;border-radius:99px;
+  text-transform:uppercase;letter-spacing:.04em;
+}
+.ph-empty{
+  grid-column:1/-1;text-align:center;padding:50px 0;
+  color:var(--t4);font-size:13px;
+}
+
 /* ── ENHANCED LOGIN PAGE ── */
 #login-page{background:radial-gradient(ellipse at 50% -10%,rgba(212,168,83,.1) 0%,var(--bg) 65%)}
 body.light #login-page{background:radial-gradient(ellipse at 50% -10%,rgba(212,168,83,.08) 0%,var(--bg) 65%)}
@@ -789,6 +845,19 @@ body.light .lcard{background:var(--bg2)}
   </nav>
 </div>
 
+<!-- MÉDIATHÈQUE PHOTOS -->
+<div id="photos-overlay">
+  <div class="ph-header">
+    <div>
+      <div style="color:var(--t1);font-size:16px;font-weight:800">📷 Médiathèque</div>
+      <div id="ph-count" style="color:var(--t4);font-size:11px;margin-top:1px">0 photo</div>
+    </div>
+    <button onclick="closePhotoLibrary()" style="background:var(--bg3);border:1px solid var(--bd);color:var(--t1);font-size:14px;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+  </div>
+  <div class="ph-filters" id="ph-filters"></div>
+  <div class="ph-grid" id="ph-grid"></div>
+</div>
+
 <!-- SCANNER PLEIN ÉCRAN -->
 <div id="scanner-overlay">
   <video id="scanner-video" autoplay playsinline muted></video>
@@ -855,6 +924,9 @@ body.light .lcard{background:var(--bg2)}
       </button>
       <button class="more-item" data-tab="budget" onclick="hideMoreSheet();goTab('budget')">
         <span class="more-icon">◉</span><span class="more-lbl">Budget</span>
+      </button>
+      <button class="more-item" onclick="hideMoreSheet();openPhotoLibrary()">
+        <span class="more-icon">🖼️</span><span class="more-lbl">Photos</span>
       </button>
     </div>
   </div>
@@ -1207,6 +1279,64 @@ function processCapture(photo){
   else if(scanMode==='edl-photo')saveEDLPhoto(photo);
 }
 
+// ══ MÉDIATHÈQUE ══
+const PH_CATS={
+  all:{lb:'Tous',col:'#c9a96e'},
+  works:{lb:'Travaux',col:'#f39c12'},
+  edl:{lb:'État des lieux',col:'#3498db'},
+  inventory:{lb:'Mobilier',col:'#9b59b6'},
+  tenants:{lb:'Locataires',col:'#2ecc71'},
+  expenses:{lb:'Dépenses',col:'#e74c3c'}
+};
+let phActiveCat='all';
+function collectPhotos(){
+  const p=P();if(!p)return[];ensure(p);
+  const list=[];
+  (p.phases||[]).forEach(ph=>(ph.photos||[]).forEach(src=>list.push({src,cat:'works',label:ph.name,sub:'Travaux'})));
+  (p.edls||[]).forEach(edl=>(edl.rooms||[]).forEach(r=>(r.photos||[]).forEach(src=>list.push({src,cat:'edl',label:r.name,sub:`EDL · ${edl.type==='entry'?'Entrée':'Sortie'} · ${edl.tenantName}`}))));
+  (p.inventory||[]).forEach(it=>{if(it.photo)list.push({src:it.photo,cat:'inventory',label:it.name,sub:it.room||'Mobilier'});});
+  (p.tenants||[]).forEach(t=>(t.docs||[]).forEach(d=>{if(d.photo)list.push({src:d.photo,cat:'tenants',label:d.label||d.type||'Document',sub:t.name});}));
+  (p.expenses||[]).forEach(ex=>{if(ex.photo)list.push({src:ex.photo,cat:'expenses',label:ex.label,sub:'Justificatif · '+fmt(ex.amount)});});
+  return list;
+}
+function openPhotoLibrary(){
+  const all=collectPhotos();
+  phActiveCat='all';
+  // Filters
+  const counts={all:all.length};
+  Object.keys(PH_CATS).filter(k=>k!=='all').forEach(k=>{counts[k]=all.filter(x=>x.cat===k).length;});
+  const filtersEl=document.getElementById('ph-filters');
+  filtersEl.innerHTML=Object.entries(PH_CATS)
+    .filter(([k])=>k==='all'||counts[k]>0)
+    .map(([k,v])=>`<button class="ph-pill${k==='all'?' on':''}" onclick="setPhCat('${k}')">${v.lb}${k!=='all'?` <span style="opacity:.7">(${counts[k]})</span>`:` <span style="opacity:.7">(${all.length})</span>`}</button>`)
+    .join('');
+  document.getElementById('ph-count').textContent=`${all.length} photo${all.length>1?'s':''}`;
+  renderPhGrid(all,all);
+  document.getElementById('photos-overlay').classList.add('on');
+}
+function setPhCat(cat){
+  phActiveCat=cat;
+  document.querySelectorAll('.ph-pill').forEach(b=>b.classList.toggle('on',b.textContent.startsWith(PH_CATS[cat]?.lb||cat)));
+  const all=collectPhotos();
+  renderPhGrid(all,cat==='all'?all:all.filter(x=>x.cat===cat));
+}
+function renderPhGrid(all,filtered){
+  const grid=document.getElementById('ph-grid');
+  if(!filtered.length){
+    grid.innerHTML=`<div class="ph-empty"><div style="font-size:36px;margin-bottom:10px">🖼️</div><div>Aucune photo dans cette catégorie</div></div>`;
+    return;
+  }
+  grid.innerHTML=filtered.map((item,i)=>{
+    const c=PH_CATS[item.cat];
+    return`<div class="ph-item" onclick="viewPhoto('${item.src}')">
+      <img src="${item.src}" loading="lazy">
+      <div class="ph-cat-badge" style="background:${c.col}22;color:${c.col};border:1px solid ${c.col}44">${c.lb}</div>
+      <div class="ph-label">${item.label}</div>
+    </div>`;
+  }).join('');
+}
+function closePhotoLibrary(){document.getElementById('photos-overlay').classList.remove('on');}
+
 // ══ GLOBAL SEARCH ══
 function globalSearch(q){
   const box=document.getElementById('search-results');
@@ -1483,6 +1613,7 @@ function rDash(el){
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('rents')">💰 Gérer loyers</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('tenants')">👤 Locataires</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('edl')">📄 État des lieux</button>
+      <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs);grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openPhotoLibrary()">🖼️ Médiathèque photos</button>
     </div>
   </div>
 
