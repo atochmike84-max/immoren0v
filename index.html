@@ -909,7 +909,7 @@ const INV_ETAT=['Neuf','Très bon','Bon','Passable','Mauvais'];
 let STATE={properties:{},partners:[]};
 let SES=null,curId=null,curTab='dashboard';
 let saveTimer=null,lastSaved=null,fbUnsub=null,presIv=null,onIv=null,isDark=true;
-let scanEDLId=null,scanRoomIdx=null,scanFurnitureId=null;
+let scanEDLId=null,scanRoomIdx=null,scanFurnitureId=null,scanContext='edl';
 let scannerStream=null,scanTorchOn=false;
 
 // ══ UTILS ══
@@ -1093,20 +1093,33 @@ function renderTab(tab){
 
 // ══ APPAREIL PHOTO EDL ══
 async function openScanner(edlId,roomIdx,furnitureId=null){
-  scanEDLId=edlId;scanRoomIdx=roomIdx;scanFurnitureId=furnitureId;
+  scanContext='edl';scanEDLId=edlId;scanRoomIdx=roomIdx;scanFurnitureId=furnitureId;
   document.getElementById('scan-hint').textContent=furnitureId?'Photographiez le meuble':'Photographiez la pièce ou les dégâts';
   document.getElementById('scan-title').textContent='📷 Photo';
   document.getElementById('scanner-overlay').classList.add('photo-mode');
   const torchBtn=document.getElementById('torch-btn');
   torchBtn.style.display='flex';scanTorchOn=false;torchBtn.textContent='💡';
+  await _startCamera({advanced:[{whiteBalanceMode:'continuous'},{exposureMode:'continuous'},{focusMode:'continuous'}]});
+}
+async function openExpenseScanner(){
+  const key=localStorage.getItem('ir-anthropic-key');
+  if(!key){configureAnthropicKey(()=>openExpenseScanner());return;}
+  scanContext='expense';
+  document.getElementById('scan-hint').textContent='Cadrez la facture, le reçu ou le document';
+  document.getElementById('scan-title').textContent='🔍 Scanner';
+  document.getElementById('scanner-overlay').classList.remove('photo-mode');
+  const torchBtn=document.getElementById('torch-btn');
+  torchBtn.style.display='none';scanTorchOn=false;
+  await _startCamera({advanced:[{whiteBalanceMode:'auto'},{exposureMode:'auto'},{focusMode:'continuous'}]});
+}
+async function _startCamera(constraints){
   try{
     const stream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:{exact:'environment'},width:{ideal:1920,min:1280},height:{ideal:1080,min:720}}
     });
     scannerStream=stream;
     const v=document.getElementById('scanner-video');v.srcObject=stream;
-    const track=stream.getVideoTracks()[0];
-    try{await track.applyConstraints({advanced:[{whiteBalanceMode:'continuous'},{exposureMode:'continuous'},{focusMode:'continuous'}]});}catch{}
+    try{await stream.getVideoTracks()[0].applyConstraints(constraints);}catch{}
     document.getElementById('scanner-overlay').classList.add('on');
   }catch{
     try{
@@ -1115,6 +1128,28 @@ async function openScanner(edlId,roomIdx,furnitureId=null){
       document.getElementById('scanner-overlay').classList.add('on');
     }catch{closeScanner();fallbackFile();}
   }
+}
+function configureAnthropicKey(cb){
+  setMod('Clé API Anthropic',`
+    <div style="color:var(--t3);font-size:12px;margin-bottom:14px;line-height:1.6">
+      Pour analyser automatiquement vos documents, entrez votre clé API Anthropic.<br>
+      Elle est stockée uniquement sur cet appareil.
+    </div>
+    <div class="field"><label>Clé API (sk-ant-...)</label>
+      <input class="inp" id="f-akey" placeholder="sk-ant-api03-..." type="password">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-full" onclick="saveAnthropicKey(${cb?'true':'false'})">Enregistrer</button>
+    </div>`);
+  openMod();
+  window._anthropicKeyCb=cb||null;
+}
+function saveAnthropicKey(){
+  const k=document.getElementById('f-akey').value.trim();
+  if(!k.startsWith('sk-')){toast('Clé invalide','warn');return;}
+  localStorage.setItem('ir-anthropic-key',k);
+  closeMod();toast('Clé enregistrée ✓','ok');
+  if(window._anthropicKeyCb){const fn=window._anthropicKeyCb;window._anthropicKeyCb=null;fn();}
 }
 async function toggleTorch(){
   if(!scannerStream)return;
@@ -1167,7 +1202,48 @@ function resizeImg(src,maxPx,q,cb){
   };
   img.src=src;
 }
-function processCapture(photo){saveEDLPhoto(photo);}
+function processCapture(photo){
+  if(scanContext==='expense')analyzeExpensePhoto(photo);
+  else saveEDLPhoto(photo);
+}
+async function analyzeExpensePhoto(photo){
+  const key=localStorage.getItem('ir-anthropic-key');
+  if(!key){openExpenseModal(null,photo);return;}
+  // Show a non-blocking loading toast while Claude analyses
+  toast('🔍 Analyse du document…');
+  const base64=photo.split(',')[1];
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'x-api-key':key,
+        'anthropic-version':'2023-06-01',
+        'content-type':'application/json',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:300,
+        messages:[{
+          role:'user',
+          content:[
+            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
+            {type:'text',text:'Analyse ce document (facture, reçu, ticket de caisse). Réponds UNIQUEMENT en JSON valide sans texte autour: {"montant":number_or_null,"libelle":"string_courte_descriptive","date":"YYYY-MM-DD_or_null","categorie":"Travaux|Entretien|Matériaux|Charges|Déplacement|Administratif|Autre"}. Montant total TTC en euros (nombre seul, sans symbole). Si un champ est inconnu mets null.'}
+          ]
+        }]
+      })
+    });
+    if(!resp.ok){const err=await resp.json();throw new Error(err.error?.message||'Erreur '+resp.status);}
+    const data=await resp.json();
+    const raw=data.content[0].text.trim();
+    const detected=JSON.parse(raw.match(/\{[\s\S]*\}/)[0]);
+    toast('✓ Document analysé','ok');
+    openExpenseModal(null,photo,detected);
+  }catch(e){
+    toast('Analyse échouée — remplissez manuellement','warn');
+    openExpenseModal(null,photo);
+  }
+}
 
 // ══ GLOBAL SEARCH ══
 function globalSearch(q){
@@ -1809,6 +1885,7 @@ function rExpenses(el){
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <h3 class="section-h" style="margin:0">Dépenses</h3>
     <div style="display:flex;gap:6px">
+      <button class="btn-scan btn-sm" onclick="openExpenseScanner()">📷 Scanner</button>
       <button class="btn btn-sm" onclick="openExpenseModal()">+ Manuel</button>
     </div>
   </div>
@@ -1871,13 +1948,21 @@ function filterExp(k){
   const list=k==='all'?p.expenses:p.expenses.filter(e=>e.paidBy===k);
   document.getElementById('exp-list').innerHTML=renderExpList([...list].sort((a,b)=>b.date.localeCompare(a.date)));
 }
-function openExpenseModal(id=null,photo=null){
+function openExpenseModal(id=null,photo=null,detected=null){
   const p=P();if(!p)return;ensure(p);
   const e=id?p.expenses.find(x=>x.id===id):null;
-  const f=e?{...e}:{label:'',date:today(),amount:'',paidBy:'moi',category:'Travaux',notes:'',recurring:false,recurringFreq:'monthly',nextDate:''};
+  const f=e?{...e}:{
+    label:detected?.libelle||'',
+    date:detected?.date||today(),
+    amount:detected?.montant||'',
+    paidBy:'moi',
+    category:detected?.categorie||'Travaux',
+    notes:'',recurring:false,recurringFreq:'monthly',nextDate:''
+  };
   const photoSrc=photo||(e?.photo||null);
   setMod(id?'Modifier la dépense':'Nouvelle dépense',`
     ${photoSrc?`<div style="margin-bottom:12px;cursor:pointer" data-ph="${photoSrc}" onclick="viewPhoto(this.dataset.ph)"><img src="${photoSrc}" style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--bd)"><div style="color:var(--t4);font-size:11px;text-align:center;margin-top:4px">📷 Appuyer pour agrandir</div></div>`:''}
+    ${detected?`<div style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--green)">✓ Données détectées automatiquement — vérifiez avant d'enregistrer</div>`:''}
     <div class="field"><label>Libellé</label><input class="inp" id="f-label" value="${f.label}" placeholder="ex: Plinthe cuisine, Ampoules..."></div>
     <div class="g2">
       <div class="field"><label>Montant €</label><input class="inp" id="f-amt" type="number" step="0.01" value="${f.amount}" placeholder="0.00"></div>
