@@ -698,7 +698,7 @@ function renderPortfolio(){
       <div class="pc-addr">${p.info.address||'Adresse non renseignée'}</div>
       <div class="pc-stats">
         <div><div class="pcs-l">Achat</div><div class="pcs-v" style="color:${p.info.color}">${fmt(p.info.purchasePrice)}</div></div>
-                <div><div class="pcs-l">Loyer cible</div><div class="pcs-v" style="color:#2ecc71">${fmt(p.info.targetRent)}/mois</div></div>
+        <div><div class="pcs-l">Loyer cible</div><div class="pcs-v" style="color:#2ecc71">${fmt(p.info.targetRent)}/mois</div></div>
         ${activeTenant?`<div><div class="pcs-l">Locataire</div><div class="pcs-v" style="color:${rentPaid?'#2ecc71':'#e74c3c'};font-size:11px">${activeTenant.name.split(' ')[0]} ${rentPaid?'✓':'⚠'}</div></div>`:''}
       </div>
       <div class="pc-foot">
@@ -1317,9 +1317,9 @@ function rEvents(el){
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           ${e.impact>0?tag('+'+fmt(e.impact),'#e74c3c'):''}${tag(EL[e.type],EC[e.type])}
           ${e.date&&!e.resolved?`<button class="btn-gcal" onclick="openGCal('${e.title}','${e.date}','${e.description||''}',120)" title="Agenda">📅</button>`:''}
-          <button class="btn-g" style="font-size:11px;padding:4px 8px;color:${e.resolved?'#2ecc71':'var(--t3)'}"
-    <button class="btn btn-full" onclick="saveTenant(${id||0})">Enregistrer</button>`;
-    <button class="btn-d" style="font-size:11px;padding:4px 6px" onclick="delItem('events',${e.id})">✕</button>
+          <button class="btn-g" style="font-size:11px;padding:4px 8px;color:${e.resolved?'#2ecc71':'var(--t3)'}" onclick="toggleEvt(${e.id})">${e.resolved?'✓ Résolu':'Résoudre'}</button>
+          <button class="btn-g" style="font-size:11px;padding:4px 7px" onclick="openEvtModal(${e.id})">✎</button>
+          <button class="btn-d" style="font-size:11px;padding:4px 6px" onclick="delItem('events',${e.id})">✕</button>
         </div>
       </div>
     </div>`;}).join('')}
