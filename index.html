@@ -995,6 +995,7 @@ function ensure(p){
   if(!p.tenants)p.tenants=[];if(!p.rents)p.rents=[];if(!p.charges)p.charges=[];
   if(!p.expenses)p.expenses=[];if(!p.edls)p.edls=[];if(!p.inventory)p.inventory=[];
   if(!p.events)p.events=[];if(!p.activityLog)p.activityLog=[];if(!p.materials)p.materials=[];if(!p.artisans)p.artisans=[];
+  if(!p.phases)p.phases=[];
   p.tenants.forEach(t=>{if(!t.docs)t.docs=[];});
   p.phases.forEach(ph=>{if(!ph.photos)ph.photos=[];});
 }
@@ -1288,7 +1289,8 @@ const PH_CATS={
   tenants:{lb:'Locataires',col:'#2ecc71'},
   expenses:{lb:'Dépenses',col:'#e74c3c'}
 };
-let phActiveCat='all';
+let phActiveCat='all',_phPhotos=[];
+function _phView(i){if(_phPhotos[i])viewPhoto(_phPhotos[i].src);}
 function collectPhotos(){
   const p=P();if(!p)return[];ensure(p);
   const list=[];
@@ -1308,19 +1310,23 @@ function openPhotoLibrary(){
   const filtersEl=document.getElementById('ph-filters');
   filtersEl.innerHTML=Object.entries(PH_CATS)
     .filter(([k])=>k==='all'||counts[k]>0)
-    .map(([k,v])=>`<button class="ph-pill${k==='all'?' on':''}" onclick="setPhCat('${k}')">${v.lb}${k!=='all'?` <span style="opacity:.7">(${counts[k]})</span>`:` <span style="opacity:.7">(${all.length})</span>`}</button>`)
+    .map(([k,v])=>`<button class="ph-pill${k==='all'?' on':''}" data-cat="${k}" onclick="setPhCat('${k}')">${v.lb}${k!=='all'?` <span style="opacity:.7">(${counts[k]})</span>`:` <span style="opacity:.7">(${all.length})</span>`}</button>`)
     .join('');
   document.getElementById('ph-count').textContent=`${all.length} photo${all.length>1?'s':''}`;
-  renderPhGrid(all,all);
+  renderPhGrid(all);
   document.getElementById('photos-overlay').classList.add('on');
 }
 function setPhCat(cat){
   phActiveCat=cat;
-  document.querySelectorAll('.ph-pill').forEach(b=>b.classList.toggle('on',b.textContent.startsWith(PH_CATS[cat]?.lb||cat)));
+  // Utilise data-cat pour éviter les faux positifs via textContent
+  document.querySelectorAll('.ph-pill').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
   const all=collectPhotos();
-  renderPhGrid(all,cat==='all'?all:all.filter(x=>x.cat===cat));
+  renderPhGrid(cat==='all'?all:all.filter(x=>x.cat===cat));
 }
-function renderPhGrid(all,filtered){
+function renderPhGrid(filtered){
+  // Stocke les photos dans un tableau global pour éviter d'injecter
+  // les base64 (parfois >100 Ko) directement dans les attributs onclick
+  _phPhotos=filtered;
   const grid=document.getElementById('ph-grid');
   if(!filtered.length){
     grid.innerHTML=`<div class="ph-empty"><div style="font-size:36px;margin-bottom:10px">🖼️</div><div>Aucune photo dans cette catégorie</div></div>`;
@@ -1328,7 +1334,7 @@ function renderPhGrid(all,filtered){
   }
   grid.innerHTML=filtered.map((item,i)=>{
     const c=PH_CATS[item.cat];
-    return`<div class="ph-item" onclick="viewPhoto('${item.src}')">
+    return`<div class="ph-item" onclick="_phView(${i})">
       <img src="${item.src}" loading="lazy">
       <div class="ph-cat-badge" style="background:${c.col}22;color:${c.col};border:1px solid ${c.col}44">${c.lb}</div>
       <div class="ph-label">${item.label}</div>
