@@ -1460,8 +1460,12 @@ function getReminders(){
     ensure(p);
     const tm=thisMonth();
     if(p.info.status==='rented'&&p.tenants.some(t=>t.status==='active')){
-      if(!p.rents.some(r=>r.month===tm&&r.paid))
-        out.push({icon:'💰',l:`Loyer ${fmtM(tm)} en attente`,s:p.info.name,urgent:true,pid:p.id,tab:'rents'});
+      const activeT=p.tenants.filter(t=>t.status==='active');
+      const unpaidT=activeT.filter(t=>!p.rents.some(r=>r.tenantId===t.id&&r.month===tm&&r.paid));
+      // Ne signaler urgent que si un loyer enregistré est impayé (pas juste absent)
+      const hasUnpaidRent=p.rents.some(r=>r.month===tm&&!r.paid&&activeT.some(t=>t.id===r.tenantId));
+      if(hasUnpaidRent)
+        out.push({icon:'💰',l:'Loyer '+fmtM(tm)+' impayé',s:p.info.name,urgent:true,pid:p.id,tab:'rents'});
     }
     p.charges.filter(c=>!c.paid&&c.nextDate).forEach(c=>{
       const d=new Date(c.nextDate+'T12:00:00');
@@ -1644,10 +1648,10 @@ function toast(m,type=''){
 function delItem(col,id){
   const p=P();if(!p||!p[col])return;
   const item=p[col].find(x=>x.id===id);
-  const name=item?.name||item?.label||item?.title||'cet élément';
-  if(!confirm(`Supprimer "${name}" ?`))return;
-  p[col]=p[col].filter(x=>x.id!==id);addLog(`a supprimé "${name}"`);
-  renderTab(curTab);scheduleSave();toast('Supprimé');
+  const name=item?.name||item?.label||item?.title||'cet element';
+  if(!confirm('Supprimer "'+name+'" ?'))return;
+  p[col]=p[col].filter(x=>x.id!==id);addLog('a supprime "'+name+'"');
+  renderTab(curTab);scheduleSave();toast('Supprime');
 }
 function viewPhoto(src){setMod('Photo',`<img src="${src}" style="width:100%;border-radius:10px">`);openMod();}
 // ══ DASHBOARD ══
@@ -3209,7 +3213,7 @@ function saveInv(id){
   const item={name:document.getElementById('f-name').value.trim(),room:document.getElementById('f-room').value,brand:document.getElementById('f-brand').value.trim(),state:document.getElementById('f-state').value,value:parseFloat(document.getElementById('f-val').value)||0,serial:document.getElementById('f-serial').value.trim(),notes:document.getElementById('f-notes').value.trim(),photo:document.getElementById('f-photo').value||null};
   if(!item.name){alert('Nom requis.');return;}
   if(id){p.inventory=p.inventory.map(x=>x.id===id?{...item,id}:x);}
-  else{p.inventory.push({...item,id:Date.now()});addLog(`a ajouté "${item.name}" à l'inventaire`);}
+  else{p.inventory.push({...item,id:Date.now()});addLog('a ajoute '+item.name+' a l inventaire');}
   closeMod();renderTab('inventory');scheduleSave();toast('Article enregistré ✓','ok');
 }
 
