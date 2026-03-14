@@ -557,25 +557,25 @@ select option{background:var(--bg2)}
   background:var(--bg2);
   border-top:1px solid var(--bd);
   display:flex;align-items:stretch;
-  height:58px;z-index:100;
+  height:56px;z-index:100;
   padding-bottom:env(safe-area-inset-bottom,0);
 }
 .bnav{
   flex:1;display:flex;flex-direction:column;
   align-items:center;justify-content:center;
   border:none;background:none;cursor:pointer;
-  font-family:inherit;gap:3px;
+  font-family:inherit;gap:2px;
   color:var(--t4);transition:all .15s;
-  padding:6px 4px;
+  padding:5px 2px;
   position:relative;
 }
 .bnav.on{color:var(--gold)}
 .bnav.on::after{
-  content:'';position:absolute;top:0;left:20%;right:20%;
+  content:'';position:absolute;top:0;left:15%;right:15%;
   height:2px;background:var(--gold);border-radius:0 0 3px 3px;
 }
-.bnav-ic{font-size:18px;line-height:1}
-.bnav-lb{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.bnav-ic{font-size:16px;line-height:1}
+.bnav-lb{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
 .bnav-badge{position:absolute;top:4px;right:calc(50% - 16px);background:var(--red);color:#fff;font-size:8px;font-weight:800;min-width:14px;height:14px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 3px}
 
 /* ── SUB TABS (context bar) ── */
@@ -1203,6 +1203,7 @@ function processCapture(photo){
       openExpenseModal(null,photo);
     }
   }
+  else if(scanMode==='devis'){scanMode='expense';processDevisPhoto(photo);}
   else if(scanMode==='tenant-doc')saveTenantDoc(photo);
   else if(scanMode==='phase-photo')savePhasePhoto(photo);
   else if(scanMode==='edl-photo')saveEDLPhoto(photo);
@@ -4197,11 +4198,7 @@ function copyToClipboard(text){
 }
 
 // processCapture pour le devis
-const _origProcessCapture=processCapture;
-function processCapture(photo){
-  if(scanMode==='devis'){scanMode='expense';processDevisPhoto(photo);}
-  else _origProcessCapture(photo);
-}
+
 
 // ══ AUTO-LOGIN (persistance session) ══
 (async()=>{
