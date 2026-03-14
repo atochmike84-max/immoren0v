@@ -1456,35 +1456,39 @@ function getReminders(){
   const now=new Date();now.setHours(0,0,0,0);
   const in30=new Date(now);in30.setDate(in30.getDate()+30);
   const in90=new Date(now);in90.setDate(in90.getDate()+90);
+  // Limite : ne pas remonter les rappels vieux de plus de 7 jours
+  const limit=new Date(now);limit.setDate(limit.getDate()-7);
   Object.values(STATE.properties).forEach(p=>{
     ensure(p);
     const tm=thisMonth();
+    // Loyers : seulement si loyer enregistré ET marqué impayé ce mois
     if(p.info.status==='rented'&&p.tenants.some(t=>t.status==='active')){
       const activeT=p.tenants.filter(t=>t.status==='active');
-      const unpaidT=activeT.filter(t=>!p.rents.some(r=>r.tenantId===t.id&&r.month===tm&&r.paid));
-      // Ne signaler urgent que si un loyer enregistré est impayé (pas juste absent)
       const hasUnpaidRent=p.rents.some(r=>r.month===tm&&!r.paid&&activeT.some(t=>t.id===r.tenantId));
       if(hasUnpaidRent)
         out.push({icon:'💰',l:'Loyer '+fmtM(tm)+' impayé',s:p.info.name,urgent:true,pid:p.id,tab:'rents'});
     }
+    // Charges : seulement si échéance dans les 30 prochains jours (pas les anciennes)
     p.charges.filter(c=>!c.paid&&c.nextDate).forEach(c=>{
       const d=new Date(c.nextDate+'T12:00:00');
-      if(d<=in30)out.push({icon:'📋',l:c.name,s:p.info.name+' · '+fmtD(c.nextDate),urgent:d<=now,pid:p.id,tab:'charges'});
+      if(d>=limit&&d<=in30)out.push({icon:'📋',l:c.name,s:p.info.name+' · '+fmtD(c.nextDate),urgent:d<=now,pid:p.id,tab:'charges'});
     });
+    // Fins de bail : seulement dans les 90 prochains jours
     p.tenants.filter(t=>t.status==='active'&&t.leaseEnd).forEach(t=>{
       const d=new Date(t.leaseEnd+'T12:00:00');
       if(d<=in90&&d>=now)out.push({icon:'📄',l:'Fin de bail : '+t.name,s:p.info.name+' · '+fmtD(t.leaseEnd),urgent:d<=in30,pid:p.id,tab:'tenants'});
     });
+    // Dépenses récurrentes : seulement dans les 30 prochains jours
     p.expenses.filter(e=>e.recurring&&e.nextDate).forEach(e=>{
       const d=new Date(e.nextDate+'T12:00:00');
-      if(d<=in30)out.push({icon:'🧾',l:'Récurrente : '+e.label,s:p.info.name+' · '+fmtD(e.nextDate),urgent:d<=now,pid:p.id,tab:'expenses'});
+      if(d>=limit&&d<=in30)out.push({icon:'🧾',l:'Récurrente : '+e.label,s:p.info.name+' · '+fmtD(e.nextDate),urgent:d<=now,pid:p.id,tab:'expenses'});
     });
   });
   return out;
 }
 function updateReminderBadge(){
   const reminders=getReminders();
-  const n=reminders.filter(r=>r.urgent).length;
+  const n=reminders.length; // Total des rappels, pas seulement urgent
   // Portfolio badge
   const b=document.getElementById('notif-count');if(b){b.textContent=n;b.style.display=n?'inline-flex':'none';}
   // Bottom nav finances badge (unpaid charges)
