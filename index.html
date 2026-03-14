@@ -1009,30 +1009,9 @@ async function doLogin(){
           Object.values(STATE.properties).forEach(p=>ensure(p));
           if(!STATE.partners)STATE.partners=[];
           if(!STATE.accounts)STATE.accounts={};
-          const nameKey=name.toLowerCase();
-          const accountEntry=STATE.accounts[nameKey];
-          // Compatibilité ancien format (string) et nouveau format (objet)
-          const existingHash=accountEntry?(typeof accountEntry==='object'?accountEntry.hash:accountEntry):null;
-          const existingDisplay=accountEntry?(typeof accountEntry==='object'?accountEntry.displayName:null):null;
-          // Projet existant avec membres : vérifier que le nom est autorisé
-          const hasMembers=Object.keys(STATE.accounts).length>0;
-          if(hasMembers){
-            if(!STATE.accounts.hasOwnProperty(nameKey)){
-              showErr("❌ Ce nom n'est pas autorisé sur ce projet. Contactez le propriétaire pour être ajouté.");
-              btn.textContent='Accéder →';btn.disabled=false;return;
-            }
-            if(existingHash && existingHash!=='pending' && existingHash!==pwdHash){
-              showErr("❌ Code incorrect pour ce compte. Vérifiez votre code d'accès.");
-              btn.textContent='Accéder →';btn.disabled=false;return;
-            }
-          }
-          // Enregistrer le hash en conservant le displayName original
-          const displayName=existingDisplay||name;
-          STATE.accounts[nameKey]={hash:pwdHash, displayName:displayName};
         } else {
-          // Nouveau projet : créer et enregistrer le compte fondateur
+          // Nouveau projet
           if(!STATE.accounts)STATE.accounts={};
-          STATE.accounts[name.toLowerCase()]={hash:pwdHash, displayName:name};
         }
       }catch{}
     }
