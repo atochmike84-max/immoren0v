@@ -3464,7 +3464,7 @@ function openSimulateur(){
   const p=P();
   const prefill=p?{price:p.info.purchasePrice,loyer:p.info.targetRent,surface:p.info.surface}:{};
   setMod('🧮 Simulateur de rentabilité',`
-    <div style="color:var(--t4);font-size:12px;margin-bottom:14px">Calculez la rentabilité ${p?'— pré-rempli avec '+p.info.name:'avant d'acheter un bien'}</div>
+    <div style="color:var(--t4);font-size:12px;margin-bottom:14px">Calculez la rentabilité ${p?'— pré-rempli avec '+p.info.name:"avant d'acheter un bien"}</div>
     <div class="g2">
       <div class="field"><label>Prix d'achat €</label><input class="inp" id="s-price" type="number" placeholder="250000" value="${prefill.price||''}" oninput="runSim()"></div>
       <div class="field"><label>Frais notaire €</label><input class="inp" id="s-notaire" type="number" placeholder="20000" oninput="runSim()"></div>
@@ -3692,7 +3692,7 @@ function getBienContext(p){
   return `Bien : ${p.info.name} (${p.info.type}, ${p.info.surface}m², DPE:${p.info.dpe||'?'})
 Adresse : ${p.info.address}
 Prix achat : ${p.info.purchasePrice}€ | Loyer cible : ${p.info.targetRent}€/mois
-Locataires actifs : ${activeT.map(t=>t.name+' (bail jusqu'au '+fmtD(t.leaseEnd)+')').join(', ')||'Aucun'}
+Locataires actifs : ${activeT.map(t=>t.name+" (bail jusqu'au "+fmtD(t.leaseEnd)+")").join(", ")||"Aucun"}
 Charges annuelles : ${chAnn}€ | Dépenses totales : ${tExp}€
 Loyers impayés : ${impayés}
 Phases travaux : ${p.phases.map(ph=>ph.name+' ('+SL[ph.status]+', budget:'+ph.budget+'€, dépensé:'+ph.spent+'€)').join('; ')||'Aucune'}
@@ -3734,7 +3734,7 @@ function rIAJuridique(el){
 }
 
 async function askJuridique(question){
-  if(!question?.trim()){toast('Posez une question d'abord','err');return;}
+  if(!question?.trim()){toast("Posez une question d'abord",'err');return;}
   const p=P();
   const resEl=document.getElementById('juridique-result');
   if(!resEl)return;
@@ -3757,13 +3757,9 @@ Tu réponds en français.${context}`,
   // Formatter la réponse
   const formatted=result.text
     .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-    .replace(/
-
-/g,'</p><p style="margin-bottom:10px">')
-    .replace(/
-/g,'<br>')
-    .replace(/^/,'<p style="margin-bottom:10px">')
-    .replace(/$/,'</p>');
+    .replace(/\n\n/g,'</p><p style="margin-bottom:10px">')
+    .replace(/\n/g,'<br>')
+    ;
 
   resEl.innerHTML=`
   <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden">
@@ -3787,7 +3783,7 @@ Tu réponds en français.${context}`,
 // ══════════════════════════════════════════════
 function rIAAnomalies(el){
   const p=P();
-  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d'abord</div>';return;}
+  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d\'abord</div>';return;}
   el.innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <h3 class="section-h" style="margin:0">🔍 Détection d'anomalies</h3>
@@ -3811,10 +3807,8 @@ async function runAnomalies(){
     const m=e.date?.slice(0,7)||'?';
     expByMonth[m]=(expByMonth[m]||0)+e.amount;
   });
-  const rentHistory=p.rents.map(r=>`${r.month}: ${r.paid?'Payé':'IMPAYÉ'} ${r.amount}€ (${p.tenants.find(t=>t.id===r.tenantId)?.name||'?'})`).join('
-');
-  const expHistory=Object.entries(expByMonth).sort().map(([m,v])=>`${m}: ${v}€`).join('
-');
+  const rentHistory=p.rents.map(r=>`${r.month}: ${r.paid?'Payé':'IMPAYÉ'} ${r.amount}€ (${p.tenants.find(t=>t.id===r.tenantId)?.name||'?'})`).join('\n');
+  const expHistory=Object.entries(expByMonth).sort().map(([m,v])=>`${m}: ${v}€`).join('\n');
 
   const result=await callClaude(
     `Tu es un analyste immobilier expert. Tu analyses les données d'un bien immobilier et identifies les anomalies, risques et points d'attention.
@@ -3834,21 +3828,16 @@ ${expHistory||'Aucune'}`,
 
   if(result.error){iaError(resEl,result.msg);return;}
 
-  const formatted=result.text
-    .replace(/🔴(.*?)(?=
-|$)/g,'<div style="background:var(--red2);border:1px solid rgba(255,77,109,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--red)">🔴$1</strong></div>')
-    .replace(/🟡(.*?)(?=
-|$)/g,'<div style="background:var(--orange2);border:1px solid rgba(255,140,66,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--orange)">🟡$1</strong></div>')
-    .replace(/🟢(.*?)(?=
-|$)/g,'<div style="background:var(--green2);border:1px solid rgba(0,208,132,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--green)">🟢$1</strong></div>')
-    .replace(/💡(.*?)(?=
-|$)/g,'<div style="background:var(--gold3);border:1px solid rgba(212,168,83,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--gold)">💡$1</strong></div>')
-    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-    .replace(/
-
-/g,'<br><br>')
-    .replace(/
-/g,'<br>');
+  // Formater par lignes pour éviter les regex complexes
+  const lines=result.text.split('\n');
+  const formatted=lines.map(line=>{
+    const l=line.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+    if(l.startsWith('🔴'))return'<div style="background:var(--red2);border:1px solid rgba(255,77,109,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--red)">'+l+'</strong></div>';
+    if(l.startsWith('🟡'))return'<div style="background:var(--orange2);border:1px solid rgba(255,140,66,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--orange)">'+l+'</strong></div>';
+    if(l.startsWith('🟢'))return'<div style="background:var(--green2);border:1px solid rgba(0,208,132,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--green)">'+l+'</strong></div>';
+    if(l.startsWith('💡'))return'<div style="background:var(--gold3);border:1px solid rgba(212,168,83,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--gold)">'+l+'</strong></div>';
+    return l?'<p style="margin-bottom:6px">'+l+'</p>':'<br>';
+  }).join('');
 
   resEl.innerHTML=`
   <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden">
@@ -3865,7 +3854,7 @@ ${expHistory||'Aucune'}`,
 // ══════════════════════════════════════════════
 function rIARapport(el){
   const p=P();
-  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d'abord</div>';return;}
+  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d\'abord</div>';return;}
   el.innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <h3 class="section-h" style="margin:0">📊 Rapport mensuel</h3>
@@ -3883,66 +3872,18 @@ async function genRapport(){
   const month=document.getElementById('rapport-month')?.value||thisMonth();
   const resEl=document.getElementById('rapport-result');
   if(!resEl)return;
-  iaLoading(resEl,'Génération du rapport...');
-
+  iaLoading(resEl,'Generation du rapport...');
   const rentsMonth=p.rents.filter(r=>r.month===month);
-  const expMonth=p.expenses.filter(e=>e.date?.startsWith(month));
-  const tLoyers=rentsMonth.reduce((s,r)=>s+r.amount,0);
-  const tExp=expMonth.reduce((s,e)=>s+e.amount,0);
-  const impayés=rentsMonth.filter(r=>!r.paid).length;
-
-  const result=await callClaude(
-    `Tu es un gestionnaire immobilier professionnel. Tu génères des rapports mensuels clairs et utiles pour un propriétaire bailleur.
-Structure : Résumé exécutif, Loyers du mois, Dépenses du mois, Travaux en cours, Alertes & Actions requises, Tendances.
-Sois professionnel, précis et orienté action. Réponds en français.`,
-    `Génère le rapport mensuel de ${fmtM(month)} pour :
-
-${getBienContext(p)}
-
-Loyers ce mois (${fmtM(month)}) :
-${rentsMonth.map(r=>`- ${p.tenants.find(t=>t.id===r.tenantId)?.name||'?'}: ${r.amount}€ ${r.paid?'✓ payé':'⚠ IMPAYÉ'}`).join('
-')||'Aucun loyer enregistré'}
-
-Dépenses ce mois :
-${expMonth.map(e=>`- ${e.date} ${e.label}: ${e.amount}€ (${e.category})`).join('
-')||'Aucune dépense'}`,
-    2000
-  );
-
+  const expMonth=p.expenses.filter(e=>e.date&&e.date.slice(0,7)===month);
+  const loyersStr=rentsMonth.length?rentsMonth.map(r=>{const t=p.tenants.find(x=>x.id===r.tenantId);return'- '+(t?t.name:'?')+': '+r.amount+'EUR '+(r.paid?'paye':'IMPAYE');}).join(' | '):'Aucun loyer enregistre';
+  const depStr=expMonth.length?expMonth.map(e=>'- '+e.date+' '+e.label+': '+e.amount+'EUR ('+e.category+')').join(' | '):'Aucune depense';
+  const sysPrompt='Tu es un gestionnaire immobilier professionnel. Tu generes des rapports mensuels clairs. Structure : Resume executif, Loyers, Depenses, Travaux, Alertes. Reponds en francais.';
+  const userMsg='Rapport '+fmtM(month)+' pour : '+getBienContext(p)+' | Loyers : '+loyersStr+' | Depenses : '+depStr;
+  const result=await callClaude(sysPrompt,userMsg,2000);
   if(result.error){iaError(resEl,result.msg);return;}
-
-  const formatted=result.text
-    .replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--t1)">$1</strong>')
-    .replace(/## (.*?)(?=
-|$)/g,'<div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:800;color:var(--t1);margin:16px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">$1</div>')
-    .replace(/
-
-/g,'<br>')
-    .replace(/
-/g,'<br>');
-
-  resEl.innerHTML=`
-  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden">
-    <div style="background:linear-gradient(135deg,#1a1a2e,#252850);padding:14px 18px">
-      <div style="color:#fff;font-weight:800;font-size:15px">Rapport mensuel · ${fmtM(month)}</div>
-      <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:2px">${p.info.name}</div>
-    </div>
-    <div style="padding:18px;font-size:13px;color:var(--t2);line-height:1.8">${formatted}</div>
-    <div style="padding:12px 18px;background:var(--bg3);border-top:1px solid var(--bd);display:flex;gap:9px">
-      <button class="btn-g btn-sm" style="flex:1" onclick="printRapport()">🖨 Imprimer</button>
-      <button class="btn-g btn-sm" style="flex:1" onclick="copyToClipboard(document.querySelector('#rapport-result').innerText)">📋 Copier</button>
-    </div>
-  </div>`;
+  const txt=result.text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+  resEl.innerHTML='<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden"><div style="background:linear-gradient(135deg,#1a1a2e,#252850);padding:14px 18px"><div style="color:#fff;font-weight:800;font-size:15px">Rapport '+fmtM(month)+'</div><div style="color:rgba(255,255,255,.5);font-size:11px">'+p.info.name+'</div></div><div style="padding:18px;font-size:13px;color:var(--t2);line-height:1.8">'+txt+'</div><div style="padding:12px 18px;background:var(--bg3);border-top:1px solid var(--bd);display:flex;gap:9px"><button class="btn-g btn-sm" style="flex:1" onclick="printRapport()">Imprimer</button><button class="btn-g btn-sm" style="flex:1" onclick="copyToClipboard(document.querySelector(chr39+chr39+chr39+\'#rapport-result\'+chr39+chr39+chr39).innerText)">Copier</button></div></div>';
 }
-
-function printRapport(){
-  const el=document.getElementById('rapport-result');if(!el)return;
-  const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport</title><style>body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;padding:20px;color:#1a1a2e;line-height:1.7}@media print{body{margin:0}}</style></head><body>${el.innerHTML}<script>window.onload=()=>window.print()<\/script></body></html>`);
-  w.document.close();
-}
-
-// ══════════════════════════════════════════════
 // 4. 📝 RÉDACTION AUTOMATIQUE DE COURRIERS
 // ══════════════════════════════════════════════
 const COURRIER_TYPES=[
@@ -3957,7 +3898,7 @@ const COURRIER_TYPES=[
 
 function rIACourriers(el){
   const p=P();
-  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d'abord</div>';return;}
+  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d\'abord</div>';return;}
   ensure(p);
   const activeT=p.tenants.filter(t=>t.status==='active');
 
@@ -4046,7 +3987,7 @@ function printCourrier(){
 // ══════════════════════════════════════════════
 function rIADevis(el){
   const p=P();
-  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d'abord</div>';return;}
+  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d\'abord</div>';return;}
   el.innerHTML=`
   <h3 class="section-h">🏗️ Analyse de devis</h3>
   <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--t3);line-height:1.6">
