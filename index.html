@@ -526,21 +526,6 @@ select option{background:var(--bg2)}
 }
 .add-pc:hover{border-color:rgba(212,168,83,.5);background:var(--gold3)}
 
-/* ── EDL ── */
-.edl-room{
-  background:var(--bg3);
-  border:1px solid var(--bd);
-  border-radius:14px;
-  padding:14px;margin-bottom:10px;
-}
-.edl-photos{display:flex;gap:7px;overflow-x:auto;margin-top:9px;padding-bottom:3px}
-.edl-photo{width:70px;height:70px;object-fit:cover;border-radius:10px;flex-shrink:0;cursor:pointer;border:1px solid var(--bd)}
-.edl-photo-add{
-  width:70px;height:70px;border-radius:10px;
-  border:2px dashed var(--t3);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  cursor:pointer;color:var(--t3);font-size:20px;flex-shrink:0;background:var(--bg2);
-}
 
 /* ── QUITTANCE ── */
 .quit-prev{
@@ -756,7 +741,6 @@ body.light .lcard{background:var(--bg2)}
     <button class="tb"    onclick="goTab('rents',this)">💰 Loyers</button>
     <button class="tb"    onclick="goTab('charges',this)">📋 Charges</button>
     <button class="tb"    onclick="goTab('expenses',this)">🧾 Dépenses</button>
-    <button class="tb"    onclick="goTab('edl',this)">📄 État lieux</button>
     <button class="tb"    onclick="goTab('inventory',this)">🛋 Mobilier</button>
     <button class="tb"    onclick="goTab('budget',this)">◉ Budget</button>
   </div>
@@ -850,9 +834,6 @@ body.light .lcard{background:var(--bg2)}
       <button class="more-item" data-tab="expenses" onclick="hideMoreSheet();goTab('expenses')">
         <span class="more-icon">🧾</span><span class="more-lbl">Dépenses</span>
       </button>
-      <button class="more-item" data-tab="edl" onclick="hideMoreSheet();goTab('edl')">
-        <span class="more-icon">📄</span><span class="more-lbl">État lieux</span>
-      </button>
       <button class="more-item" data-tab="inventory" onclick="hideMoreSheet();goTab('inventory')">
         <span class="more-icon">🛋</span><span class="more-lbl">Mobilier</span>
       </button>
@@ -902,14 +883,13 @@ const PAYER_IC={moi:'👤',associe:'🤝',commun:'🏦'};
 const PAYER_LB={moi:'Moi',associe:'Associé',commun:'Commun'};
 const PAYER_CL={moi:'#c9a96e',associe:'#3498db',commun:'#2ecc71'};
 const REC_FREQ={monthly:'Mensuelle',quarterly:'Trimestrielle',annual:'Annuelle'};
-const EDL_ETAT=['Neuf','Très bon','Bon état','Correct','Usure normale','Dégradé','À rénover'];
 const INV_ETAT=['Neuf','Très bon','Bon','Passable','Mauvais'];
 
 // ══ STATE ══
 let STATE={properties:{},partners:[]};
 let SES=null,curId=null,curTab='dashboard';
 let saveTimer=null,lastSaved=null,fbUnsub=null,presIv=null,onIv=null,isDark=true;
-let scanEDLId=null,scanRoomIdx=null,scanFurnitureId=null,scanContext='edl';
+let scanContext='expense';
 let scannerStream=null,scanTorchOn=false;
 
 // ══ UTILS ══
@@ -924,7 +904,7 @@ const today=()=>new Date().toISOString().slice(0,10);
 const thisMonth=()=>new Date().toISOString().slice(0,7);
 function ensure(p){
   if(!p.tenants)p.tenants=[];if(!p.rents)p.rents=[];if(!p.charges)p.charges=[];
-  if(!p.expenses)p.expenses=[];if(!p.edls)p.edls=[];if(!p.inventory)p.inventory=[];
+  if(!p.expenses)p.expenses=[];if(!p.inventory)p.inventory=[];
   if(!p.events)p.events=[];if(!p.activityLog)p.activityLog=[];if(!p.materials)p.materials=[];if(!p.artisans)p.artisans=[];
   if(!p.phases)p.phases=[];
   p.tenants.forEach(t=>{if(!t.docs)t.docs=[];});
@@ -1087,20 +1067,10 @@ function goTab(tab,btn){
 }
 function renderTab(tab){
   const el=document.getElementById('tab-ct');if(!el)return;
-  const r={dashboard:rDash,planning:rPlanning,works:rWorks,artisans:rArtisans,tenants:rTenants,rents:rRents,charges:rCharges,expenses:rExpenses,edl:rEDL,inventory:rInventory,budget:rBudget};
+  const r={dashboard:rDash,planning:rPlanning,works:rWorks,artisans:rArtisans,tenants:rTenants,rents:rRents,charges:rCharges,expenses:rExpenses,inventory:rInventory,budget:rBudget};
   if(r[tab])r[tab](el);else el.innerHTML='<div class="empty">Section en cours...</div>';
 }
 
-// ══ APPAREIL PHOTO EDL ══
-async function openScanner(edlId,roomIdx,furnitureId=null){
-  scanContext='edl';scanEDLId=edlId;scanRoomIdx=roomIdx;scanFurnitureId=furnitureId;
-  document.getElementById('scan-hint').textContent=furnitureId?'Photographiez le meuble':'Photographiez la pièce ou les dégâts';
-  document.getElementById('scan-title').textContent='📷 Photo';
-  document.getElementById('scanner-overlay').classList.add('photo-mode');
-  const torchBtn=document.getElementById('torch-btn');
-  torchBtn.style.display='flex';scanTorchOn=false;torchBtn.textContent='💡';
-  await _startCamera({advanced:[{whiteBalanceMode:'continuous'},{exposureMode:'continuous'},{focusMode:'continuous'}]});
-}
 async function openExpenseScanner(){
   const key=localStorage.getItem('ir-anthropic-key');
   if(!key){configureAnthropicKey(()=>openExpenseScanner());return;}
@@ -1207,8 +1177,7 @@ function resizeImg(src,maxPx,q,cb){
   img.src=src;
 }
 function processCapture(photo){
-  if(scanContext==='expense')analyzeExpensePhoto(photo);
-  else saveEDLPhoto(photo);
+  analyzeExpensePhoto(photo);
 }
 async function analyzeExpensePhoto(photo){
   const key=localStorage.getItem('ir-anthropic-key');
@@ -1436,7 +1405,7 @@ function saveProp(id){
   const info={name:document.getElementById('f-name').value.trim(),address:document.getElementById('f-addr').value.trim(),type:document.getElementById('f-type').value,surface:parseFloat(document.getElementById('f-surf').value)||0,purchasePrice:parseFloat(document.getElementById('f-price').value)||0,targetRent:parseFloat(document.getElementById('f-rent').value)||0,status:document.getElementById('f-status').value,color:document.getElementById('f-color').value};
   if(!info.name){alert('Le nom est requis.');return;}
   if(id&&STATE.properties[id]){STATE.properties[id].info=info;if(curId===id){document.getElementById('d-name').textContent=info.name;document.getElementById('d-addr').textContent=info.address;}}
-  else{const nid=Date.now();STATE.properties[nid]={id:nid,info,phases:[],materials:[],artisans:[],tenants:[],rents:[],charges:[],expenses:[],edls:[],inventory:[],events:[],activityLog:[]};}
+  else{const nid=Date.now();STATE.properties[nid]={id:nid,info,phases:[],materials:[],artisans:[],tenants:[],rents:[],charges:[],expenses:[],inventory:[],events:[],activityLog:[]};}
   closeMod();renderPortfolio();scheduleSave();toast('Bien enregistré ✓','ok');
 }
 function delProp(id){
@@ -1528,7 +1497,6 @@ function rDash(el){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('rents')">💰 Gérer loyers</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('tenants')">👤 Locataires</button>
-      <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('edl')">📄 État des lieux</button>
     </div>
   </div>
 
@@ -2025,310 +1993,6 @@ function saveExpense(id){
 }
 
 // ══ ÉTAT DES LIEUX ══
-function rEDL(el){
-  const p=P();if(!p)return;ensure(p);
-  el.innerHTML=`
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <h3 class="section-h" style="margin:0">État des lieux</h3>
-    <button class="btn btn-sm" onclick="openEDLModal()">+ Nouveau</button>
-  </div>
-  ${p.edls.map(e=>`
-    <div class="card" style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-        <div>
-          <div style="color:var(--t1);font-weight:700;font-size:14px">${e.type==='entry'?'📥 Entrée':'📤 Sortie'} · ${e.tenantName||'—'}</div>
-          <div style="color:var(--t4);font-size:11px">${fmtD(e.date)}${e.compareTo?' · Comparé avec EDL précédent':''}</div>
-        </div>
-        ${tag(e.type==='entry'?'Entrée':'Sortie',e.type==='entry'?'#2ecc71':'#f39c12')}
-      </div>
-      <div style="display:flex;gap:12px;margin-bottom:10px">
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Pièces</div><div style="font-weight:700">${(e.rooms||[]).length}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Photos</div><div style="font-weight:700">${(e.rooms||[]).reduce((s,r)=>s+(r.photos||[]).length,0)}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Notes</div><div style="font-weight:700">${(e.rooms||[]).filter(r=>r.notes).length}</div></div>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn-g btn-sm" style="flex:1" onclick="openEDLDetail(${e.id})">📋 Détail</button>
-        <button class="btn-g btn-sm" onclick="openEDLModal(${e.id})">✎</button>
-        <button class="btn-d btn-sm" style="padding:7px 9px" onclick="delItem('edls',${e.id})">✕</button>
-      </div>
-    </div>`).join('')}
-  ${!p.edls.length?`
-    <div style="text-align:center;padding:30px 0">
-      <div style="font-size:40px;margin-bottom:10px">📋</div>
-      <div style="color:var(--t2);font-weight:700;margin-bottom:5px">Aucun état des lieux</div>
-      <div style="color:var(--t4);font-size:13px;margin-bottom:14px">Créez votre premier état des lieux d'entrée</div>
-      <button class="btn btn-sm" onclick="openEDLModal()">Créer maintenant</button>
-    </div>`:''}`;
-}
-function openEDLModal(id){
-  const p=P();if(!p)return;ensure(p);
-  const e=id?p.edls.find(x=>x.id===id):null;
-  const f=e?{...e}:{type:'entry',date:today(),tenantName:'',rooms:[]};
-  const actT=p.tenants.find(t=>t.status==='active');
-  if(!f.tenantName&&actT)f.tenantName=actT.name;
-  const defaultRooms=['Entrée','Salon','Cuisine','Chambre 1','Salle de bain','WC'];
-  setMod(id?'Modifier EDL':'Nouvel état des lieux',`
-    <div class="g2">
-      <div class="field"><label>Type</label><select class="inp" id="f-type"><option value="entry" ${f.type==='entry'?'selected':''}>Entrée</option><option value="exit" ${f.type==='exit'?'selected':''}>Sortie</option></select></div>
-      <div class="field"><label>Date</label><input class="inp" id="f-date" type="date" value="${f.date}"></div>
-    </div>
-    <div class="field"><label>Nom du locataire</label><input class="inp" id="f-ten" value="${(f.tenantName||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field"><label>Pièces à inspecter</label>
-      <div id="rooms-list" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">
-        ${defaultRooms.map(r=>{const sel=(f.rooms||[]).some(x=>x.name===r);return`<button onclick="toggleRoomSel(this)" style="border:1px solid ${sel?'var(--gold)':'var(--bd)'};background:${sel?'rgba(201,169,110,.1)':'var(--bg3)'};color:${sel?'var(--gold)':'var(--t3)'};border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:inherit" data-room="${r}" data-sel="${sel?'1':'0'}">${r}</button>`;}).join('')}
-      </div>
-    </div>
-    <button class="btn btn-full" onclick="saveEDL(${id||0})">Créer l'état des lieux</button>`);
-  openMod();
-}
-function toggleRoomSel(btn){
-  const active=btn.dataset.sel==='1';
-  btn.dataset.sel=active?'0':'1';
-  if(!active){btn.style.border='1px solid var(--gold)';btn.style.background='rgba(201,169,110,.1)';btn.style.color='var(--gold)';}
-  else{btn.style.border='1px solid var(--bd)';btn.style.background='var(--bg3)';btn.style.color='var(--t3)';}
-}
-function saveEDL(id){
-  const p=P();if(!p)return;ensure(p);
-  const type=document.getElementById('f-type').value;
-  const date=document.getElementById('f-date').value;
-  const tenantName=document.getElementById('f-ten').value.trim();
-  const selRooms=[...document.querySelectorAll('#rooms-list button[data-sel="1"]')].map(b=>b.dataset.room);
-  const DEF_ELEM=()=>({sol:{etat:'Bon état',notes:''},murs:{etat:'Bon état',notes:''},plafond:{etat:'Bon état',notes:''},fenetres:{etat:'Bon état',notes:''}});
-  const rooms=selRooms.map(name=>({name,etat:'Bon état',notes:'',photos:[],elements:DEF_ELEM(),furniture:{}}));
-  const item={type,date,tenantName,rooms};
-  if(id){
-    const old=p.edls.find(e=>e.id===id);
-    if(!old){toast('EDL introuvable','warn');return;}
-    // Merge rooms: preserve existing data, add new rooms with defaults
-    const mergedRooms=rooms.map(nr=>{
-      const ex=old.rooms.find(or=>or.name===nr.name);
-      return ex?{...nr,...ex,name:nr.name}:nr;
-    });
-    p.edls=p.edls.map(e=>e.id===id?{...item,id,rooms:mergedRooms}:e);
-  }
-  else{p.edls.push({...item,id:Date.now()});addLog(`a créé EDL ${type==='entry'?'entrée':'sortie'} pour ${tenantName}`);}
-  closeMod();renderTab('edl');scheduleSave();toast('État des lieux créé ✓','ok');
-}
-function openEDLDetail(id){
-  const p=P();if(!p)return;ensure(p);
-  const e=p.edls.find(x=>x.id===id);if(!e)return;
-  const ELEMS=[{k:'sol',ic:'🟫',lb:'Sol'},{k:'murs',ic:'🧱',lb:'Murs'},{k:'plafond',ic:'⬜',lb:'Plafond'},{k:'fenetres',ic:'🪟',lb:'Fenêtres'}];
-  const etatSel=(val,onChange)=>`<select onchange="${onChange}" style="background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:3px 6px;color:var(--t1);font-size:10px;font-family:inherit;max-width:90px">${EDL_ETAT.map(s=>`<option value="${s}" ${val===s?'selected':''}>${s}</option>`).join('')}</select>`;
-  setMod(`${e.type==='entry'?'📥 Entrée':'📤 Sortie'} · ${e.tenantName}`,`
-    <div style="color:var(--t4);font-size:12px;margin-bottom:14px">${fmtD(e.date)}</div>
-    ${e.rooms.map((r,ri)=>{
-      // Ensure defaults exist for old EDLs without elements
-      if(!r.elements)r.elements={sol:{etat:'Bon état',notes:''},murs:{etat:'Bon état',notes:''},plafond:{etat:'Bon état',notes:''},fenetres:{etat:'Bon état',notes:''}};
-      if(!r.furniture)r.furniture={};
-      const invItems=p.inventory.filter(it=>it.room===r.name);
-      return`<div class="edl-room">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="color:var(--t1);font-weight:700;font-size:14px">${r.name}</div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="color:var(--t4);font-size:10px">Global :</span>
-            ${etatSel(r.etat,`updateEDLRoom(${id},${ri},'etat',this.value)`)}
-          </div>
-        </div>
-        <!-- Éléments structurels -->
-        <div style="background:var(--bg3);border-radius:9px;padding:9px;margin-bottom:8px">
-          <div style="color:var(--t4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">Éléments</div>
-          ${ELEMS.map(el=>`
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-              <span style="font-size:14px;flex-shrink:0">${el.ic}</span>
-              <span style="color:var(--t2);font-size:12px;font-weight:600;flex:1">${el.lb}</span>
-              ${etatSel((r.elements[el.k]||{}).etat||'Bon état',`updateEDLElement(${id},${ri},'${el.k}','etat',this.value)`)}
-            </div>
-            <input placeholder="Observations ${el.lb.toLowerCase()}..." value="${((r.elements[el.k]||{}).notes||'').replace(/"/g,'&quot;')}" oninput="updateEDLElement(${id},${ri},'${el.k}','notes',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;color:var(--t1);font-size:11px;font-family:inherit;margin-bottom:6px">`).join('')}
-        </div>
-        <!-- Mobilier inventorié dans cette pièce -->
-        ${invItems.length?`
-        <div style="background:var(--bg3);border-radius:9px;padding:9px;margin-bottom:8px">
-          <div style="color:var(--t4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">Mobilier (${invItems.length})</div>
-          ${invItems.map(it=>{
-            const fd=r.furniture[it.id]||{};
-            const fPhotos=fd.photos||[];
-            return`
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-              ${it.photo?`<img src="${it.photo}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0">`:
-                `<div style="width:32px;height:32px;border-radius:6px;background:var(--bg);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🛋</div>`}
-              <div style="flex:1;min-width:0">
-                <div style="color:var(--t1);font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.name}${it.brand?' · <span style="color:var(--t4);font-weight:400">'+it.brand+'</span>':''}</div>
-                <div style="color:var(--t4);font-size:10px">Inventaire : ${it.state||'—'}</div>
-              </div>
-              ${etatSel(fd.etat||'Bon état',`updateEDLFurniture(${id},${ri},${it.id},'etat',this.value)`)}
-            </div>
-            <input placeholder="Observations ${it.name}..." value="${(fd.notes||'').replace(/"/g,'&quot;')}" oninput="updateEDLFurniture(${id},${ri},${it.id},'notes',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;color:var(--t1);font-size:11px;font-family:inherit;margin-bottom:4px">
-            <div class="edl-photos" style="margin-bottom:8px">
-              ${fPhotos.map(ph=>`<img class="edl-photo" src="${ph}" data-ph="${ph}" onclick="viewPhoto(this.dataset.ph)">`).join('')}
-              <div class="edl-photo-add" onclick="openScanner(${id},${ri},${it.id})">📷</div>
-            </div>`;
-          }).join('')}
-        </div>`:''}
-        <!-- Notes générales + photos -->
-        <textarea placeholder="Notes générales de la pièce..." style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:8px;color:var(--t1);font-size:12px;font-family:inherit;resize:none;min-height:44px;margin-bottom:8px" oninput="updateEDLRoom(${id},${ri},'notes',this.value)">${r.notes||''}</textarea>
-        <div class="edl-photos">
-          ${(r.photos||[]).map(ph=>`<img class="edl-photo" src="${ph}" data-ph="${ph}" onclick="viewPhoto(this.dataset.ph)">`).join('')}
-          <div class="edl-photo-add" onclick="openScanner(${id},${ri})">📷</div>
-        </div>
-      </div>`;}).join('')}
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn btn-full" onclick="closeMod();scheduleSave()">✓ Enregistrer</button>
-      <button class="btn-g btn-full" style="flex:1;padding:14px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer" onclick="generateEDLPdf(${id})">📄 PDF</button>
-    </div>`);
-  openMod();
-}
-function generateEDLPdf(id){
-  const p=P();if(!p)return;
-  const e=p.edls.find(x=>x.id===id);if(!e)return;
-  const ELEMS=[{k:'sol',lb:'Sol'},{k:'murs',lb:'Murs'},{k:'plafond',lb:'Plafond'},{k:'fenetres',lb:'Fenêtres'}];
-  const etatColor={Neuf:'#1a7a1a','Très bon':'#2e7d32','Bon état':'#388e3c',Correct:'#f57f17','Usure normale':'#e65100',Dégradé:'#c62828','À rénover':'#b71c1c'};
-  const ec=v=>etatColor[v]||'#555';
-  const roomsHtml=e.rooms.map(r=>{
-    const elems=r.elements||{};
-    const furn=r.furniture||{};
-    const invItems=(p.inventory||[]).filter(it=>it.room===r.name);
-    const elemRows=ELEMS.map(el=>{
-      const d=elems[el.k]||{etat:'—',notes:''};
-      return`<tr><td style="padding:5px 8px;border:1px solid #ddd;font-weight:600;background:#fafafa">${el.lb}</td><td style="padding:5px 8px;border:1px solid #ddd;color:${ec(d.etat)};font-weight:700">${d.etat||'—'}</td><td style="padding:5px 8px;border:1px solid #ddd;color:#555;font-size:10px">${d.notes||''}</td></tr>`;
-    }).join('');
-    const furnitureRows=invItems.length?invItems.map(it=>{
-      const fd=furn[it.id]||{};
-      return`<tr><td style="padding:5px 8px;border:1px solid #ddd">${it.name}${it.brand?' ('+it.brand+')':''}</td><td style="padding:5px 8px;border:1px solid #ddd;color:#888;font-size:10px">Inventaire: ${it.state||'—'}</td><td style="padding:5px 8px;border:1px solid #ddd;color:${ec(fd.etat||it.state)};font-weight:700">${fd.etat||'—'}</td><td style="padding:5px 8px;border:1px solid #ddd;color:#555;font-size:10px">${fd.notes||''}</td></tr>`;
-    }).join(''):'';
-    const photosHtml=(r.photos||[]).length?`<div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase">Photos (${r.photos.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${r.photos.map(ph=>`<img src="${ph}" style="width:100px;height:75px;object-fit:cover;border-radius:4px;border:1px solid #ddd">`).join('')}</div></div>`:'';
-    return`<div style="page-break-inside:avoid;margin-bottom:18px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
-      <div style="background:#1a1d27;color:#fff;padding:9px 14px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-weight:700;font-size:13px">${r.name}</span>
-        <span style="font-size:11px;background:${ec(r.etat)}22;color:${ec(r.etat)};padding:2px 10px;border-radius:20px;border:1px solid ${ec(r.etat)}">${r.etat||'—'}</span>
-      </div>
-      <div style="padding:10px 14px">
-        <table style="width:100%;border-collapse:collapse;margin-bottom:8px;font-size:11px">
-          <thead><tr><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;text-align:left;font-size:10px;text-transform:uppercase">Élément</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;text-align:left;font-size:10px;text-transform:uppercase">État</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;text-align:left;font-size:10px;text-transform:uppercase">Observations</th></tr></thead>
-          <tbody>${elemRows}</tbody>
-        </table>
-        ${invItems.length?`<div style="font-size:10px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase">Mobilier</div>
-        <table style="width:100%;border-collapse:collapse;margin-bottom:8px;font-size:11px">
-          <thead><tr><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;text-align:left;font-size:10px;text-transform:uppercase">Article</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;font-size:10px;text-transform:uppercase">État inventaire</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;font-size:10px;text-transform:uppercase">État constaté</th><th style="padding:5px 8px;border:1px solid #ddd;background:#f0f0f0;font-size:10px;text-transform:uppercase">Observations</th></tr></thead>
-          <tbody>${furnitureRows}</tbody>
-        </table>`:''}
-        ${r.notes?`<div style="font-size:11px;color:#444;background:#fffde7;border-left:3px solid #f39c12;padding:7px 10px;border-radius:3px;margin-bottom:8px"><strong>Notes :</strong> ${r.notes}</div>`:''}
-        ${photosHtml}
-      </div>
-    </div>`;
-  }).join('');
-  const now=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
-  const html=`<!DOCTYPE html>
-<html lang="fr"><head><meta charset="UTF-8"><title>État des Lieux — ${e.tenantName} — ${fmtD(e.date)}</title>
-<style>
-  @page{size:A4;margin:20mm 15mm}
-  *{box-sizing:border-box}
-  body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1a1d27;margin:0;padding:0}
-  @media print{.no-print{display:none!important}}
-</style></head>
-<body>
-<!-- Bouton impression (masqué à l'impression) -->
-<div class="no-print" style="position:fixed;top:0;left:0;right:0;background:#1a1d27;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999">
-  <button onclick="window.print()" style="background:#c9a96e;border:none;color:#080b12;font-weight:800;padding:10px 22px;border-radius:8px;font-size:13px;cursor:pointer">🖨️ Imprimer / Enregistrer PDF</button>
-  <button onclick="window.close()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;cursor:pointer">✕ Fermer</button>
-  <span style="color:rgba(255,255,255,.6);font-size:12px">→ Dans la boîte de dialogue, choisissez "Enregistrer en PDF" pour obtenir le fichier.</span>
-</div>
-<div style="padding-top:52px">
-<!-- EN-TÊTE -->
-<div style="border-bottom:3px solid #1a1d27;padding-bottom:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-start">
-  <div>
-    <div style="font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#1a1d27">État des Lieux</div>
-    <div style="font-size:14px;font-weight:700;color:${e.type==='entry'?'#2e7d32':'#c62828'};margin-top:3px">${e.type==='entry'?'▶ Entrée':'◀ Sortie'}</div>
-    <div style="font-size:11px;color:#666;margin-top:3px">Établi le ${fmtD(e.date)}</div>
-  </div>
-  <div style="text-align:right">
-    <div style="font-size:11px;color:#888;text-transform:uppercase;font-weight:700">Réf. EDL</div>
-    <div style="font-size:12px;font-weight:700;color:#1a1d27">#${id}</div>
-  </div>
-</div>
-<!-- PARTIES -->
-<div style="display:flex;gap:14px;margin-bottom:18px">
-  <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:12px">
-    <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px">Bailleur / Bien</div>
-    <div style="font-weight:700;font-size:13px">${p.info.name}</div>
-    <div style="color:#555;margin-top:3px">${p.info.address||'—'}</div>
-    <div style="color:#888;font-size:10px;margin-top:2px">${p.info.type||''}</div>
-  </div>
-  <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:12px">
-    <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px">Locataire</div>
-    <div style="font-weight:700;font-size:13px">${e.tenantName}</div>
-    <div style="color:#888;font-size:10px;margin-top:4px">État des lieux d'${e.type==='entry'?'entrée':'sortie'} — ${fmtD(e.date)}</div>
-  </div>
-</div>
-<!-- RÉSUMÉ -->
-<div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:6px;padding:10px 14px;margin-bottom:18px;display:flex;gap:20px">
-  <div><span style="color:#888;font-size:10px;text-transform:uppercase">Pièces inspectées</span><br><strong>${e.rooms.length}</strong></div>
-  <div><span style="color:#888;font-size:10px;text-transform:uppercase">Photos</span><br><strong>${e.rooms.reduce((s,r)=>s+(r.photos||[]).length,0)}</strong></div>
-  <div><span style="color:#888;font-size:10px;text-transform:uppercase">Articles inventaire</span><br><strong>${(p.inventory||[]).length}</strong></div>
-  <div><span style="color:#888;font-size:10px;text-transform:uppercase">Document généré le</span><br><strong>${now}</strong></div>
-</div>
-<!-- PIÈCES -->
-<div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #1a1d27;padding-bottom:6px;margin-bottom:14px">Constat pièce par pièce</div>
-${roomsHtml}
-<!-- SIGNATURES -->
-<div style="page-break-inside:avoid;margin-top:30px;border-top:2px solid #1a1d27;padding-top:18px">
-  <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;margin-bottom:18px">Signatures</div>
-  <div style="display:flex;gap:30px">
-    <div style="flex:1">
-      <div style="font-size:11px;font-weight:700;margin-bottom:4px">Le Bailleur</div>
-      <div style="font-size:10px;color:#888;margin-bottom:30px">Lu et approuvé</div>
-      <div style="border-bottom:1px solid #999;margin-bottom:5px;height:50px"></div>
-      <div style="font-size:10px;color:#888">Signature · Date : _______________</div>
-    </div>
-    <div style="flex:1">
-      <div style="font-size:11px;font-weight:700;margin-bottom:4px">Le Locataire — ${e.tenantName}</div>
-      <div style="font-size:10px;color:#888;margin-bottom:30px">Lu et approuvé</div>
-      <div style="border-bottom:1px solid #999;margin-bottom:5px;height:50px"></div>
-      <div style="font-size:10px;color:#888">Signature · Date : _______________</div>
-    </div>
-  </div>
-  <div style="margin-top:20px;font-size:9px;color:#aaa;text-align:center">Document généré par ImmoRénov · ${now} · Réf. #${id} · Ce document doit être signé par les deux parties pour avoir valeur légale.</div>
-</div>
-</div>
-</body></html>`;
-  const win=window.open('','_blank');
-  if(!win){toast('Autorisez les popups pour générer le PDF','warn');return;}
-  win.document.write(html);win.document.close();
-}
-function updateEDLElement(edlId,roomIdx,elemKey,field,val){
-  const p=P();if(!p)return;ensure(p);
-  const e=p.edls.find(x=>x.id===edlId);if(!e||!e.rooms[roomIdx])return;
-  if(!e.rooms[roomIdx].elements)e.rooms[roomIdx].elements={};
-  if(!e.rooms[roomIdx].elements[elemKey])e.rooms[roomIdx].elements[elemKey]={etat:'Bon état',notes:''};
-  e.rooms[roomIdx].elements[elemKey][field]=val;scheduleSave();
-}
-function updateEDLFurniture(edlId,roomIdx,itemId,field,val){
-  const p=P();if(!p)return;ensure(p);
-  const e=p.edls.find(x=>x.id===edlId);if(!e||!e.rooms[roomIdx])return;
-  if(!e.rooms[roomIdx].furniture)e.rooms[roomIdx].furniture={};
-  if(!e.rooms[roomIdx].furniture[itemId])e.rooms[roomIdx].furniture[itemId]={etat:'Bon état',notes:''};
-  e.rooms[roomIdx].furniture[itemId][field]=val;scheduleSave();
-}
-function updateEDLRoom(edlId,roomIdx,field,val){
-  const p=P();if(!p)return;ensure(p);
-  const e=p.edls.find(x=>x.id===edlId);if(!e||!e.rooms[roomIdx])return;
-  e.rooms[roomIdx][field]=val;scheduleSave();
-}
-function saveEDLPhoto(photo){
-  const p=P();if(!p)return;ensure(p);
-  const e=p.edls.find(x=>x.id===scanEDLId);if(!e||!e.rooms[scanRoomIdx])return;
-  if(scanFurnitureId!=null){
-    if(!e.rooms[scanRoomIdx].furniture)e.rooms[scanRoomIdx].furniture={};
-    const fd=e.rooms[scanRoomIdx].furniture;
-    if(!fd[scanFurnitureId])fd[scanFurnitureId]={};
-    if(!fd[scanFurnitureId].photos)fd[scanFurnitureId].photos=[];
-    fd[scanFurnitureId].photos.push(photo);
-  }else{
-    if(!e.rooms[scanRoomIdx].photos)e.rooms[scanRoomIdx].photos=[];
-    e.rooms[scanRoomIdx].photos.push(photo);
-  }
-  scheduleSave();toast('Photo ajoutée ✓','ok');
-  setTimeout(()=>openEDLDetail(scanEDLId),300);
-}
 
 // ══ INVENTORY ══
 function rInventory(el){
