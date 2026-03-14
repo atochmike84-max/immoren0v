@@ -3031,12 +3031,12 @@ function genEDLPdf(edlId){
 ${pg1}
 ${pg2}
 ${pg3}
-<script>
+<scr`+`ipt>
 window.onload=function(){
   document.title='EDL_${(e.tenantName||'commun').replace(/\s/g,'_')}_${e.date}';
   setTimeout(()=>window.print(),400);
 };
-<\/script>
+</scr`+`ipt>
 </body></html>`);
   w.document.close();
 }
