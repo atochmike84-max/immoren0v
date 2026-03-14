@@ -551,107 +551,6 @@ select option{background:var(--bg2)}
   .prop-grid{grid-template-columns:1fr}
   .g2{grid-template-columns:1fr}
 }
-
-/* ── HEADER GLASSMORPHISM ── */
-.hdr{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(15,19,32,.92)}
-body.light .hdr{background:rgba(255,255,255,.92)}
-.syncbar{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-
-/* ── MODAL ANIMATION ── */
-#mov.on{animation:bkdFadeIn .2s ease}
-#mov.on #mbox{animation:mboxUp .25s cubic-bezier(.34,1.15,.64,1)}
-@keyframes bkdFadeIn{from{opacity:0}to{opacity:1}}
-@keyframes mboxUp{from{transform:translateY(52px);opacity:0}to{transform:translateY(0);opacity:1}}
-
-/* ── BOTTOM NAV ── */
-.bnav{
-  background:var(--bg2);
-  border-top:1px solid var(--bd);
-  display:flex;
-  flex-shrink:0;
-  padding-bottom:max(env(safe-area-inset-bottom,0px),4px);
-  position:relative;z-index:45;
-}
-.bnav-item{
-  flex:1;background:none;border:none;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:9px 4px 5px;font-family:inherit;
-  color:var(--t3);transition:color .15s;
-  position:relative;min-height:54px;
-  -webkit-tap-highlight-color:transparent;
-}
-.bnav-item.on{color:var(--gold)}
-.bnav-indicator{
-  position:absolute;top:0;left:50%;transform:translateX(-50%);
-  width:28px;height:2.5px;border-radius:0 0 3px 3px;
-  background:var(--gold);opacity:0;transition:opacity .2s,width .2s;
-}
-.bnav-item.on .bnav-indicator{opacity:1}
-.bnav-icon{font-size:19px;line-height:1.3;display:block}
-.bnav-lbl{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-top:2px;display:block}
-
-/* ── MORE SHEET ── */
-#more-sheet{
-  display:none;position:fixed;inset:0;
-  background:rgba(4,6,14,.75);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
-  z-index:150;align-items:flex-end;justify-content:center;
-}
-#more-sheet.on{display:flex}
-#more-sheet-box{
-  background:var(--bg2);
-  border-top-left-radius:22px;border-top-right-radius:22px;
-  padding:6px 18px max(env(safe-area-inset-bottom,0px),20px);
-  width:100%;max-width:580px;
-  border-top:1px solid var(--bd);
-  box-shadow:0 -8px 48px rgba(0,0,0,.55);
-  animation:sheetUp .22s cubic-bezier(.4,0,.2,1);
-}
-#more-sheet-box::before{
-  content:'';display:block;
-  width:36px;height:4px;background:var(--bd);border-radius:99px;
-  margin:8px auto 14px;
-}
-@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.more-title{color:var(--t3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
-.more-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:4px}
-.more-item{
-  display:flex;flex-direction:column;align-items:center;gap:5px;
-  padding:13px 6px 11px;
-  background:var(--bg3);border:1px solid var(--bd);
-  border-radius:14px;cursor:pointer;transition:all .15s;font-family:inherit;
-  -webkit-tap-highlight-color:transparent;
-}
-.more-item:active{transform:scale(.95);background:var(--bd)}
-.more-item.on{border-color:var(--gold);background:var(--gold3)}
-.more-icon{font-size:20px;line-height:1}
-.more-lbl{font-size:9.5px;font-weight:700;color:var(--t3);letter-spacing:.03em;text-transform:uppercase;text-align:center}
-.more-item.on .more-lbl{color:var(--gold)}
-
-/* ── ENHANCED LOGIN PAGE ── */
-#login-page{background:radial-gradient(ellipse at 50% -10%,rgba(212,168,83,.1) 0%,var(--bg) 65%)}
-body.light #login-page{background:radial-gradient(ellipse at 50% -10%,rgba(212,168,83,.08) 0%,var(--bg) 65%)}
-.lcard{background:linear-gradient(160deg,var(--bg2) 0%,rgba(15,19,32,.85) 100%);border-color:rgba(212,168,83,.15)}
-body.light .lcard{background:var(--bg2)}
-.logo{animation:logoPulse 3s ease-in-out infinite}
-@keyframes logoPulse{
-  0%,100%{box-shadow:0 8px 24px rgba(212,168,83,.35)}
-  50%{box-shadow:0 10px 38px rgba(212,168,83,.55),0 0 0 8px rgba(212,168,83,.08)}
-}
-
-/* ── ENHANCED PORTFOLIO CARDS ── */
-.pc{background:linear-gradient(148deg,var(--bg2) 0%,var(--bg3) 100%)}
-.pc:hover{transform:translateY(-3px);box-shadow:0 18px 50px rgba(0,0,0,.4);border-color:rgba(212,168,83,.3)}
-.kc{background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 85%)}
-
-/* ── SMOOTH SCROLL & TRANSITIONS ── */
-.scroll{scroll-behavior:smooth}
-.pf{transition:width .65s cubic-bezier(.4,0,.2,1)}
-.card{transition:box-shadow .2s}
-.btn:hover{transform:translateY(-1px)}
-.btn:active{transform:scale(.97) translateY(0)}
-
-/* ── HIDE TOP TABS (replaced by bottom nav) ── */
-#det-tabs{display:none}
 </style>
 </head>
 <body>
@@ -754,33 +653,6 @@ body.light .lcard{background:var(--bg2)}
     <button class="tb"    onclick="goTab('budget',this)">◉ Budget</button>
   </div>
   <div class="scroll" id="tab-ct"></div>
-  <nav class="bnav" id="bnav">
-    <button class="bnav-item on" data-tab="dashboard" onclick="goTab('dashboard')">
-      <div class="bnav-indicator"></div>
-      <span class="bnav-icon">📊</span>
-      <span class="bnav-lbl">Accueil</span>
-    </button>
-    <button class="bnav-item" data-tab="works" onclick="goTab('works')">
-      <div class="bnav-indicator"></div>
-      <span class="bnav-icon">⚙</span>
-      <span class="bnav-lbl">Travaux</span>
-    </button>
-    <button class="bnav-item" data-tab="tenants" onclick="goTab('tenants')">
-      <div class="bnav-indicator"></div>
-      <span class="bnav-icon">👤</span>
-      <span class="bnav-lbl">Locataires</span>
-    </button>
-    <button class="bnav-item" data-tab="rents" onclick="goTab('rents')">
-      <div class="bnav-indicator"></div>
-      <span class="bnav-icon">💰</span>
-      <span class="bnav-lbl">Loyers</span>
-    </button>
-    <button class="bnav-item" id="bnav-more" onclick="showMoreSheet()">
-      <div class="bnav-indicator"></div>
-      <span class="bnav-icon" style="font-size:20px;letter-spacing:-1px">···</span>
-      <span class="bnav-lbl">Plus</span>
-    </button>
-  </nav>
 </div>
 
 <!-- SCANNER PLEIN ÉCRAN -->
@@ -820,40 +692,6 @@ body.light .lcard{background:var(--bg2)}
     <div id="mbody"></div>
   </div>
 </div>
-
-<!-- MORE SHEET -->
-<div id="more-sheet" onclick="hideMoreSheet(event)">
-  <div id="more-sheet-box">
-    <div class="more-title">Toutes les sections</div>
-    <div class="more-grid">
-      <button class="more-item" data-tab="planning" onclick="hideMoreSheet();goTab('planning')">
-        <span class="more-icon">▦</span><span class="more-lbl">Planning</span>
-      </button>
-      <button class="more-item" data-tab="artisans" onclick="hideMoreSheet();goTab('artisans')">
-        <span class="more-icon">◈</span><span class="more-lbl">Artisans</span>
-      </button>
-      <button class="more-item" data-tab="charges" onclick="hideMoreSheet();goTab('charges')">
-        <span class="more-icon">📋</span><span class="more-lbl">Charges</span>
-      </button>
-      <button class="more-item" data-tab="expenses" onclick="hideMoreSheet();goTab('expenses')">
-        <span class="more-icon">🧾</span><span class="more-lbl">Dépenses</span>
-      </button>
-      <button class="more-item" data-tab="edl" onclick="hideMoreSheet();goTab('edl')">
-        <span class="more-icon">📄</span><span class="more-lbl">État lieux</span>
-      </button>
-      <button class="more-item" data-tab="inventory" onclick="hideMoreSheet();goTab('inventory')">
-        <span class="more-icon">🛋</span><span class="more-lbl">Mobilier</span>
-      </button>
-      <button class="more-item" data-tab="budget" onclick="hideMoreSheet();goTab('budget')">
-        <span class="more-icon">◉</span><span class="more-lbl">Budget</span>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- CANVAS (used for photo capture) -->
-<canvas id="cap-canvas" style="display:none"></canvas>
-<div id="toast"></div>
 
 <script>
 // ══ CRYPTO ══
@@ -1053,22 +891,10 @@ function openProperty(id){
   document.getElementById('d-name').textContent=p.info.name;
   document.getElementById('d-addr').textContent=p.info.address;
   document.querySelectorAll('#det-tabs .tb').forEach((b,i)=>b.classList.toggle('on',i===0));
-  // Reset bottom nav to dashboard
-  document.querySelectorAll('#bnav .bnav-item').forEach(b=>b.classList.remove('on'));
-  const dashBtn=document.querySelector('#bnav [data-tab="dashboard"]');if(dashBtn)dashBtn.classList.add('on');
-  // Reset more-sheet state
-  document.querySelectorAll('.more-item[data-tab]').forEach(b=>b.classList.remove('on'));
   curTab='dashboard';showPage('detail-page');renderTab('dashboard');
 }
 function goTab(tab,btn){
   if(btn){document.querySelectorAll('#det-tabs .tb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
-  // Sync bottom nav
-  document.querySelectorAll('#bnav .bnav-item').forEach(b=>b.classList.remove('on'));
-  const bItem=document.querySelector(`#bnav [data-tab="${tab}"]`);
-  if(bItem){bItem.classList.add('on');}
-  else{const more=document.getElementById('bnav-more');if(more)more.classList.add('on');}
-  // Sync more-sheet active state
-  document.querySelectorAll('.more-item[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
   curTab=tab;renderTab(tab);
   document.getElementById('tab-ct').scrollTop=0;
 }
@@ -1360,14 +1186,6 @@ function delProp(id){
 function setMod(title,html){document.getElementById('mtitle').textContent=title;document.getElementById('mbody').innerHTML=html;}
 function openMod(){document.getElementById('mov').classList.add('on');}
 function closeMod(e){if(e&&e.target!==document.getElementById('mov'))return;document.getElementById('mov').classList.remove('on');}
-function showMoreSheet(){
-  document.querySelectorAll('.more-item[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===curTab));
-  document.getElementById('more-sheet').classList.add('on');
-}
-function hideMoreSheet(e){
-  if(e&&e.target!==document.getElementById('more-sheet'))return;
-  document.getElementById('more-sheet').classList.remove('on');
-}
 function toast(m,type=''){
   const t=document.getElementById('toast');t.textContent=m;t.className='on'+(type?' '+type:'');
   clearTimeout(t._t);t._t=setTimeout(()=>t.className='',2800);
@@ -2006,114 +1824,394 @@ function saveExpense(id){
 // ══ ÉTAT DES LIEUX ══
 function rEDL(el){
   const p=P();if(!p)return;ensure(p);
+  const allPhotos=[];
+  p.edls.forEach(e=>(e.items||[]).forEach(it=>(it.photos||[]).forEach(ph=>allPhotos.push({src:ph,edl:e,item:it.name,room:it.room}))));
+  const hasDeg=e=>(e.items||[]).some(it=>it.etat==='Dégradé'||it.etat==='Mauvais');
+  const score=e=>{const its=e.items||[];if(!its.length)return null;const g=its.filter(i=>['Neuf','Très bon','Bon'].includes(i.etat)).length;return Math.round(g/its.length*100);};
+
+  // Group EDLs: commun + by colocataire
+  const edlCommun=p.edls.filter(e=>e.scope==='commun');
+  const edlColos=p.tenants.map(t=>({tenant:t,edls:p.edls.filter(e=>e.tenantId===t.id)}));
+
   el.innerHTML=`
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <h3 class="section-h" style="margin:0">État des lieux</h3>
-    <button class="btn btn-sm" onclick="openEDLModal()">+ Nouveau</button>
+    <button class="btn btn-sm" onclick="openNewEDL()">+ Nouvel EDL</button>
   </div>
-  ${p.edls.map(e=>`
-    <div class="card" style="margin-bottom:10px">
+
+  <!-- Tabs: Commun / Colocataires / Galerie -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px">
+    <button onclick="switchEDLView('commun',this)" id="edlv-commun" style="flex:0 0 auto;padding:8px 14px;border-radius:10px;border:1.5px solid var(--gold);background:var(--gold3);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🏠 Parties communes</button>
+    ${p.tenants.filter(t=>t.status==='active').map(t=>`<button onclick="switchEDLView('colo-${t.id}',this)" id="edlv-colo-${t.id}" style="flex:0 0 auto;padding:8px 14px;border-radius:10px;border:1.5px solid var(--bd);background:var(--bg3);color:var(--t3);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">👤 ${t.name.split(' ')[0]}</button>`).join('')}
+    <button onclick="switchEDLView('gallery',this)" id="edlv-gallery" style="flex:0 0 auto;padding:8px 14px;border-radius:10px;border:1.5px solid var(--bd);background:var(--bg3);color:var(--t3);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📸 Galerie (${allPhotos.length})</button>
+  </div>
+
+  <!-- Vue Commun -->
+  <div id="edlview-commun">
+    ${edlCommun.length?edlCommun.map(e=>edlCard(e)).join(''):emptyEDL('Parties communes','Créer EDL commun (salon, cuisine, salle de bain...)',`openNewEDL('commun')`)}
+  </div>
+
+  <!-- Vues Colocataires -->
+  ${p.tenants.filter(t=>t.status==='active').map(t=>`
+    <div id="edlview-colo-${t.id}" style="display:none">
+      ${edlColos.find(x=>x.tenant.id===t.id)?.edls.length
+        ? edlColos.find(x=>x.tenant.id===t.id).edls.map(e=>edlCard(e)).join('')
+        : emptyEDL(t.name,'Créer EDL chambre privative',`openNewEDL(${t.id})`)}
+    </div>`).join('')}
+
+  <!-- Galerie globale -->
+  <div id="edlview-gallery" style="display:none">
+    ${allPhotos.length?`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px">
+        ${allPhotos.map((ph,i)=>`
+          <div style="position:relative;cursor:pointer" onclick="viewPhoto('${ph.src}')">
+            <img src="${ph.src}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid var(--bd)">
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent);padding:5px 6px;border-radius:0 0 10px 10px">
+              <div style="color:#fff;font-size:9px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ph.item}</div>
+              <div style="color:rgba(255,255,255,.6);font-size:8px">${ph.room} · ${fmtD(ph.edl.date)}</div>
+            </div>
+          </div>`).join('')}
+      </div>`:`<div class="empty">Aucune photo enregistrée</div>`}
+  </div>`;
+
+  function edlCard(e){
+    const sc=score(e);
+    const deg=hasDeg(e);
+    const typeLabel={entry:'📥 Entrée',exit:'📤 Sortie',intermediate:'🔄 Intermédiaire'};
+    const typeColor={entry:'var(--green)',exit:'var(--orange)',intermediate:'var(--blue)'};
+    const prevEntry=e.type!=='entry'?p.edls.find(x=>x.id===e.compareWith):null;
+    const alerts=prevEntry?(e.items||[]).filter(it=>{const prev=prevEntry.items?.find(x=>x.invId===it.invId);return prev&&stateScore(it.etat)<stateScore(prev.etat);}).length:0;
+    return`<div class="card" style="margin-bottom:11px;border-left:3px solid ${typeColor[e.type]||'var(--bd)'}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
-          <div style="color:var(--t1);font-weight:700;font-size:14px">${e.type==='entry'?'📥 Entrée':'📤 Sortie'} · ${e.tenantName||'—'}</div>
-          <div style="color:var(--t4);font-size:11px">${fmtD(e.date)}${e.compareTo?' · Comparé avec EDL précédent':''}</div>
+          <div style="color:var(--t1);font-weight:700;font-size:14px">${typeLabel[e.type]||'EDL'} · ${e.tenantName||'Parties communes'}</div>
+          <div style="color:var(--t4);font-size:11px;margin-top:2px">${fmtD(e.date)}${e.signature?' · ✍ Signé':''}</div>
         </div>
-        ${tag(e.type==='entry'?'Entrée':'Sortie',e.type==='entry'?'#2ecc71':'#f39c12')}
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          ${sc!==null?`<div style="font-size:18px;font-weight:800;font-family:'Space Grotesk',sans-serif;color:${sc>=80?'var(--green)':sc>=50?'var(--orange)':'var(--red)'}">${sc}%</div>`:'' }
+          ${alerts?`<span style="background:var(--red2);border:1px solid rgba(255,77,109,.3);color:var(--red);font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px">⚠ ${alerts} dégradation${alerts>1?'s':''}</span>`:''}
+        </div>
       </div>
-      <div style="display:flex;gap:12px;margin-bottom:10px">
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Pièces</div><div style="font-weight:700">${(e.rooms||[]).length}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Photos</div><div style="font-weight:700">${(e.rooms||[]).reduce((s,r)=>s+(r.photos||[]).length,0)}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Notes</div><div style="font-weight:700">${(e.rooms||[]).filter(r=>r.notes).length}</div></div>
+      <div style="display:flex;gap:14px;margin-bottom:11px">
+        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Objets</div><div style="font-weight:700">${(e.items||[]).length}</div></div>
+        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Photos</div><div style="font-weight:700">${(e.items||[]).reduce((s,it)=>s+(it.photos||[]).length,0)}</div></div>
+        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Dégradés</div><div style="font-weight:700;color:${deg?'var(--red)':'var(--green)'}">${(e.items||[]).filter(i=>i.etat==='Dégradé'||i.etat==='Mauvais').length}</div></div>
       </div>
       <div style="display:flex;gap:6px">
-        <button class="btn-g btn-sm" style="flex:1" onclick="openEDLDetail(${e.id})">📋 Détail</button>
-        <button class="btn-g btn-sm" onclick="openEDLModal(${e.id})">✎</button>
-        <button class="btn-d btn-sm" style="padding:7px 9px" onclick="delItem('edls',${e.id})">✕</button>
+        <button class="btn btn-sm" style="flex:1" onclick="openEDLFill(${e.id})">✏️ Remplir</button>
+        ${prevEntry?`<button class="btn-g btn-sm" onclick="openEDLCompare(${e.id},${prevEntry.id})">⚖️ Comparer</button>`:''}
+        ${!e.signature?`<button class="btn-g btn-sm" onclick="openEDLSign(${e.id})">✍ Signer</button>`:''}
+        <button class="btn-g btn-sm" onclick="genEDLPdf(${e.id})">📄 PDF</button>
+        <button class="btn-d btn-sm" style="padding:9px 10px" onclick="delItem('edls',${e.id})">✕</button>
       </div>
-    </div>`).join('')}
-  ${!p.edls.length?`
-    <div style="text-align:center;padding:30px 0">
-      <div style="font-size:40px;margin-bottom:10px">📋</div>
-      <div style="color:var(--t2);font-weight:700;margin-bottom:5px">Aucun état des lieux</div>
-      <div style="color:var(--t4);font-size:13px;margin-bottom:14px">Créez votre premier état des lieux d'entrée</div>
-      <button class="btn btn-sm" onclick="openEDLModal()">Créer maintenant</button>
-    </div>`:''}`;
+    </div>`;
+  }
+  function emptyEDL(who,label,fn){
+    return`<div style="text-align:center;padding:28px 0;border:2px dashed var(--bd);border-radius:16px">
+      <div style="font-size:36px;margin-bottom:8px">📋</div>
+      <div style="color:var(--t2);font-weight:700;margin-bottom:4px">${who}</div>
+      <div style="color:var(--t4);font-size:12px;margin-bottom:14px">${label}</div>
+      <button class="btn btn-sm" onclick="${fn}">Créer maintenant</button>
+    </div>`;
+  }
 }
-function openEDLModal(id){
+
+function stateScore(s){
+  const m={Neuf:5,'Très bon':4,'Bon':3,'Bon état':3,'Usure normale':2,'Correct':2,'Dégradé':1,'Mauvais':0};
+  return m[s]??2;
+}
+function switchEDLView(id,btn){
+  ['commun','gallery',...(P()?.tenants||[]).filter(t=>t.status==='active').map(t=>`colo-${t.id}`)].forEach(v=>{
+    const el=document.getElementById('edlview-'+v);if(el)el.style.display='none';
+    const b=document.getElementById('edlv-'+v);
+    if(b){b.style.border='1.5px solid var(--bd)';b.style.background='var(--bg3)';b.style.color='var(--t3)';}
+  });
+  const el=document.getElementById('edlview-'+id);if(el)el.style.display='block';
+  if(btn){btn.style.border='1.5px solid var(--gold)';btn.style.background='var(--gold3)';btn.style.color='var(--gold)';}
+}
+
+function openNewEDL(scope){
   const p=P();if(!p)return;ensure(p);
-  const e=id?p.edls.find(x=>x.id===id):null;
-  const f=e?{...e}:{type:'entry',date:today(),tenantName:'',rooms:[]};
-  const actT=p.tenants.find(t=>t.status==='active');
-  if(!f.tenantName&&actT)f.tenantName=actT.name;
-  const defaultRooms=['Entrée','Salon','Cuisine','Chambre 1','Salle de bain','WC'];
-  setMod(id?'Modifier EDL':'Nouvel état des lieux',`
+  const isCommun=scope==='commun';
+  const tenantId=(!isCommun&&scope)?scope:null;
+  const tenant=tenantId?p.tenants.find(t=>t.id===tenantId):null;
+  // Récupérer les pièces selon scope
+  const allRooms=[...new Set(p.inventory.map(it=>it.room).filter(Boolean))];
+  const COMMON=['Salon','Séjour','Cuisine','Salle de bain','WC','Entrée','Couloir','Buanderie','Autre'];
+  const privateRooms=allRooms.filter(r=>!COMMON.includes(r));
+  const commonRooms=allRooms.filter(r=>COMMON.includes(r));
+  const defaultRooms=isCommun?commonRooms:privateRooms;
+  // EDL d'entrée existant pour comparaison
+  const entryEDLs=p.edls.filter(e=>e.type==='entry'&&(isCommun?e.scope==='commun':e.tenantId===tenantId));
+  setMod('Nouvel état des lieux',`
     <div class="g2">
-      <div class="field"><label>Type</label><select class="inp" id="f-type"><option value="entry" ${f.type==='entry'?'selected':''}>Entrée</option><option value="exit" ${f.type==='exit'?'selected':''}>Sortie</option></select></div>
-      <div class="field"><label>Date</label><input class="inp" id="f-date" type="date" value="${f.date}"></div>
-    </div>
-    <div class="field"><label>Nom du locataire</label><input class="inp" id="f-ten" value="${f.tenantName}"></div>
-    <div class="field"><label>Pièces à inspecter</label>
-      <div id="rooms-list" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">
-        ${defaultRooms.map(r=>`<button onclick="toggleRoomSel(this,'${r}')" style="border:1px solid ${(f.rooms||[]).some(x=>x.name===r)?'var(--gold)':'var(--bd)'};background:${(f.rooms||[]).some(x=>x.name===r)?'rgba(201,169,110,.1)':'var(--bg3)'};color:${(f.rooms||[]).some(x=>x.name===r)?'var(--gold)':'var(--t3)'};border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:inherit" data-room="${r}">${r}</button>`).join('')}
+      <div class="field"><label>Type</label>
+        <select class="inp" id="f-type">
+          <option value="entry">📥 Entrée</option>
+          <option value="exit">📤 Sortie</option>
+          <option value="intermediate">🔄 Intermédiaire</option>
+        </select>
       </div>
+      <div class="field"><label>Date</label><input class="inp" id="f-date" type="date" value="${today()}"></div>
     </div>
-    <button class="btn btn-full" onclick="saveEDL(${id||0})">Créer l'état des lieux</button>`);
+    ${!isCommun?`<div class="field"><label>Colocataire</label><input class="inp" id="f-tenant" value="${tenant?.name||''}" placeholder="Nom du colocataire"></div>`:''}
+    ${entryEDLs.length?`<div class="field"><label>Comparer avec (optionnel)</label>
+      <select class="inp" id="f-compare">
+        <option value="">— Aucune comparaison —</option>
+        ${entryEDLs.map(e=>`<option value="${e.id}">Entrée ${fmtD(e.date)} · ${e.tenantName||'Commun'}</option>`).join('')}
+      </select></div>`:'<input type="hidden" id="f-compare" value="">'}
+    <div class="field"><label>Pièces à inspecter</label>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px" id="rooms-list">
+        ${(defaultRooms.length?defaultRooms:allRooms).map(r=>`<button data-room="${r}" onclick="toggleRoomSel(this,'${r}')" style="border:1.5px solid var(--gold);background:var(--gold3);color:var(--gold);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
+        ${(defaultRooms.length?allRooms.filter(r=>!defaultRooms.includes(r)):[]).map(r=>`<button data-room="${r}" onclick="toggleRoomSel(this,'${r}')" style="border:1px solid var(--bd);background:var(--bg3);color:var(--t3);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
+      </div>
+      ${!allRooms.length?`<div style="color:var(--orange);font-size:12px;padding:8px;background:var(--orange2);border-radius:8px">⚠ Aucun article dans l'inventaire Mobilier. Ajoutez d'abord vos meubles.</div>`:''}
+    </div>
+    <button class="btn btn-full" onclick="saveNewEDL(${tenantId||0},'${isCommun?'commun':'private'}')">Créer l'état des lieux</button>`);
   openMod();
 }
-function toggleRoomSel(btn,room){
-  const active=btn.style.borderColor.includes('gold')||btn.style.border.includes('var(--gold)');
-  if(!active){btn.style.border='1px solid var(--gold)';btn.style.background='rgba(201,169,110,.1)';btn.style.color='var(--gold)';}
-  else{btn.style.border='1px solid var(--bd)';btn.style.background='var(--bg3)';btn.style.color='var(--t3)';}
-}
-function saveEDL(id){
+function saveNewEDL(tenantId,scope){
   const p=P();if(!p)return;ensure(p);
   const type=document.getElementById('f-type').value;
   const date=document.getElementById('f-date').value;
-  const tenantName=document.getElementById('f-ten').value.trim();
-  const selRooms=[...document.querySelectorAll('#rooms-list button')].filter(b=>b.style.color.includes('gold')||b.style.border.includes('gold')).map(b=>b.dataset.room);
-  const rooms=selRooms.map(name=>({name,etat:'Bon état',notes:'',photos:[]}));
-  const item={type,date,tenantName,rooms};
-  if(id){const old=p.edls.find(e=>e.id===id);p.edls=p.edls.map(e=>e.id===id?{...item,id,rooms:old.rooms}:e);}
-  else{p.edls.push({...item,id:Date.now()});addLog(`a créé EDL ${type==='entry'?'entrée':'sortie'} pour ${tenantName}`);}
+  const compareWith=document.getElementById('f-compare')?.value||null;
+  const tenantNameEl=document.getElementById('f-tenant');
+  const tenantName=tenantNameEl?tenantNameEl.value.trim():(scope==='commun'?'Parties communes':'');
+  const selRooms=[...document.querySelectorAll('#rooms-list button')].filter(b=>b.style.borderColor.includes('var(--gold)')||b.style.border.includes('var(--gold)')).map(b=>b.dataset.room);
+  if(!selRooms.length){toast('Sélectionnez au moins une pièce','err');return;}
+  // Charger les objets de l'inventaire pour ces pièces
+  const items=p.inventory.filter(it=>selRooms.includes(it.room)).map(it=>({
+    invId:it.id,name:it.name,room:it.room,brand:it.brand||'',
+    etatRef:it.state,etat:it.state,notes:'',photos:[]
+  }));
+  const edl={id:Date.now(),type,date,scope,tenantId:tenantId||null,tenantName,compareWith:compareWith||null,items,signature:null,signatureDate:null};
+  p.edls.push(edl);
+  addLog(`a créé EDL ${type} pour ${tenantName||'parties communes'}`);
   closeMod();renderTab('edl');scheduleSave();toast('État des lieux créé ✓','ok');
 }
-function openEDLDetail(id){
+
+// ── Remplir un EDL ──
+function openEDLFill(edlId){
   const p=P();if(!p)return;ensure(p);
-  const e=p.edls.find(x=>x.id===id);if(!e)return;
-  setMod(`${e.type==='entry'?'📥 Entrée':'📤 Sortie'} · ${e.tenantName}`,`
-    <div style="color:var(--t4);font-size:12px;margin-bottom:14px">${fmtD(e.date)}</div>
-    ${e.rooms.map((r,ri)=>`
-      <div class="edl-room">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="color:var(--t1);font-weight:700">${r.name}</div>
-          <select onchange="updateEDLRoom(${id},${ri},'etat',this.value)" style="background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;color:var(--t1);font-size:11px;font-family:inherit">
-            ${EDL_ETAT.map(s=>`<option value="${s}" ${r.etat===s?'selected':''}>${s}</option>`).join('')}
-          </select>
-        </div>
-        <textarea placeholder="Notes, observations..." style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:8px;color:var(--t1);font-size:12px;font-family:inherit;resize:none;min-height:44px" oninput="updateEDLRoom(${id},${ri},'notes',this.value)">${r.notes||''}</textarea>
-        <div style="margin-top:8px">
-          <div class="edl-photos">
-            ${(r.photos||[]).map(ph=>`<img class="edl-photo" src="${ph}" onclick="viewPhoto('${ph}')">`).join('')}
-            <div class="edl-photo-add" onclick="scanEDLId=${id};scanRoomIdx=${ri};openScanner('edl-photo')">📷</div>
+  const e=p.edls.find(x=>x.id===edlId);if(!e)return;
+  const rooms=[...new Set((e.items||[]).map(it=>it.room))];
+  let html=`<div style="color:var(--t4);font-size:11px;margin-bottom:14px">${fmtD(e.date)} · ${e.tenantName||'Parties communes'}</div>`;
+  rooms.forEach(room=>{
+    const its=e.items.filter(it=>it.room===room);
+    html+=`<div style="margin-bottom:18px">
+      <div class="sl">${room}</div>
+      ${its.map((it,i)=>{
+        const idx=e.items.indexOf(it);
+        const stateColors={'Neuf':'var(--teal)','Très bon':'var(--green)','Bon':'var(--green)','Bon état':'var(--green)','Usure normale':'var(--orange)','Correct':'var(--orange)','Dégradé':'var(--red)','Mauvais':'var(--red)'};
+        return`<div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:13px;margin-bottom:9px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+            <div>
+              <div style="color:var(--t1);font-weight:700;font-size:13px">${it.name}</div>
+              ${it.brand?`<div style="color:var(--t4);font-size:11px">${it.brand}</div>`:''}
+            </div>
+            <div style="color:var(--t4);font-size:10px;text-align:right">Réf: ${it.etatRef||'—'}</div>
           </div>
-        </div>
-      </div>`).join('')}
-    <button class="btn btn-full" onclick="closeMod();scheduleSave()">✓ Enregistrer</button>`);
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px">
+            ${['Neuf','Très bon','Bon','Usure normale','Dégradé','Mauvais'].map(s=>`
+              <button onclick="setItemEtat(${edlId},${idx},'${s}',this)" style="border:1.5px solid ${it.etat===s?stateColors[s]:'var(--bd)'};background:${it.etat===s?stateColors[s]+'22':'var(--bg)'};color:${it.etat===s?stateColors[s]:'var(--t3)'};border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">${s}</button>`).join('')}
+          </div>
+          <input placeholder="Notes sur cet objet..." value="${it.notes||''}" oninput="setItemNotes(${edlId},${idx},this.value)" style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;color:var(--t1);font-size:12px;font-family:inherit;outline:none;margin-bottom:8px">
+          <!-- Photos dégâts -->
+          <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px">
+            ${(it.photos||[]).map((ph,pi)=>`
+              <div style="position:relative;flex-shrink:0">
+                <img src="${ph}" style="width:64px;height:64px;object-fit:cover;border-radius:9px;cursor:pointer;border:1px solid var(--bd)" onclick="viewPhoto('${ph}')">
+                <button onclick="removeEDLPhoto(${edlId},${idx},${pi})" style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:var(--red);border:none;border-radius:50%;color:#fff;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700">✕</button>
+              </div>`).join('')}
+            ${(it.photos||[]).length<3?`
+              <div onclick="addEDLPhoto(${edlId},${idx})" style="width:64px;height:64px;border-radius:9px;border:2px dashed ${(it.etat==='Dégradé'||it.etat==='Mauvais')?'var(--red)':'var(--bd)'};display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--t4);font-size:20px;flex-shrink:0;background:var(--bg2);gap:2px">
+                📷<span style="font-size:8px;font-weight:700;color:var(--t4)">PHOTO</span>
+              </div>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+  if(!e.signature){
+    html+=`<div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="color:var(--t2);font-size:13px;font-weight:700;margin-bottom:4px">✍ Signature</div>
+      <div style="color:var(--t4);font-size:12px;margin-bottom:10px">Faire signer le colocataire pour valider l'EDL</div>
+      <button class="btn-g" style="width:100%;padding:11px" onclick="closeMod();openEDLSign(${edlId})">Procéder à la signature →</button>
+    </div>`;
+  } else {
+    html+=`<div style="background:var(--green2);border:1px solid rgba(0,208,132,.3);border-radius:12px;padding:11px 14px;margin-bottom:10px;display:flex;align-items:center;gap:9px">
+      <span style="font-size:20px">✅</span>
+      <div><div style="color:var(--green);font-weight:700;font-size:13px">EDL signé</div><div style="color:var(--t4);font-size:11px">Le ${fmtD(e.signatureDate)}</div></div>
+    </div>`;
+  }
+  html+=`<button class="btn btn-full" onclick="closeMod();scheduleSave();toast('EDL enregistré ✓','ok')">✓ Enregistrer</button>`;
+  setMod('✏️ Remplir l\'état des lieux',html);
   openMod();
 }
-function updateEDLRoom(edlId,roomIdx,field,val){
-  const p=P();if(!p)return;ensure(p);
-  const e=p.edls.find(x=>x.id===edlId);if(!e||!e.rooms[roomIdx])return;
-  e.rooms[roomIdx][field]=val;scheduleSave();
+function setItemEtat(edlId,idx,val,btn){
+  const p=P();if(!p)return;
+  const e=p.edls.find(x=>x.id===edlId);if(!e||!e.items[idx])return;
+  e.items[idx].etat=val;scheduleSave();
+  // Update button styles in DOM
+  const stateColors={'Neuf':'var(--teal)','Très bon':'var(--green)','Bon':'var(--green)','Bon état':'var(--green)','Usure normale':'var(--orange)','Correct':'var(--orange)','Dégradé':'var(--red)','Mauvais':'var(--red)'};
+  const c=stateColors[val]||'var(--gold)';
+  btn.closest('div').querySelectorAll('button').forEach(b=>{
+    const s=b.textContent.trim();const cs=stateColors[s]||'var(--bd)';
+    b.style.border=`1.5px solid ${b===btn?c:'var(--bd)'}`;
+    b.style.background=b===btn?c+'22':'var(--bg)';
+    b.style.color=b===btn?c:'var(--t3)';
+  });
 }
-function saveEDLPhoto(photo){
-  const p=P();if(!p)return;ensure(p);
-  const e=p.edls.find(x=>x.id===scanEDLId);if(!e||!e.rooms[scanRoomIdx])return;
-  if(!e.rooms[scanRoomIdx].photos)e.rooms[scanRoomIdx].photos=[];
-  e.rooms[scanRoomIdx].photos.push(photo);
-  scheduleSave();renderTab('edl');toast('Photo ajoutée ✓','ok');
-  // Reopen detail
-  setTimeout(()=>openEDLDetail(scanEDLId),300);
+function setItemNotes(edlId,idx,val){
+  const p=P();if(!p)return;
+  const e=p.edls.find(x=>x.id===edlId);if(!e||!e.items[idx])return;
+  e.items[idx].notes=val;scheduleSave();
+}
+function addEDLPhoto(edlId,idx){
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.capture='environment';
+  inp.onchange=ev=>{
+    const file=ev.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=re=>{
+      resizeImg(re.target.result,1200,0.9,photo=>{
+        const p=P();if(!p)return;
+        const e=p.edls.find(x=>x.id===edlId);if(!e||!e.items[idx])return;
+        if(!e.items[idx].photos)e.items[idx].photos=[];
+        if(e.items[idx].photos.length>=3){toast('Max 3 photos par objet','err');return;}
+        e.items[idx].photos.push(photo);
+        scheduleSave();
+        // Refresh the modal
+        openEDLFill(edlId);
+      });
+    };
+    reader.readAsDataURL(file);
+  };inp.click();
+}
+function removeEDLPhoto(edlId,idx,pi){
+  const p=P();if(!p)return;
+  const e=p.edls.find(x=>x.id===edlId);if(!e||!e.items[idx])return;
+  e.items[idx].photos.splice(pi,1);scheduleSave();openEDLFill(edlId);
+}
+
+// ── Comparaison EDL ──
+function openEDLCompare(exitId,entryId){
+  const p=P();if(!p)return;
+  const exit=p.edls.find(x=>x.id===exitId);
+  const entry=p.edls.find(x=>x.id===entryId);
+  if(!exit||!entry)return;
+  const stateColors={'Neuf':'var(--teal)','Très bon':'var(--green)','Bon':'var(--green)','Bon état':'var(--green)','Usure normale':'var(--orange)','Correct':'var(--orange)','Dégradé':'var(--red)','Mauvais':'var(--red)'};
+  const rooms=[...new Set(exit.items.map(it=>it.room))];
+  let html=`<div style="display:flex;gap:10px;margin-bottom:14px">
+    <div style="flex:1;background:var(--green2);border:1px solid rgba(0,208,132,.2);border-radius:9px;padding:9px 11px;text-align:center"><div style="color:var(--green);font-size:10px;font-weight:700;text-transform:uppercase">Entrée</div><div style="color:var(--t1);font-size:12px;font-weight:600">${fmtD(entry.date)}</div></div>
+    <div style="flex:1;background:var(--orange2);border:1px solid rgba(255,140,66,.2);border-radius:9px;padding:9px 11px;text-align:center"><div style="color:var(--orange);font-size:10px;font-weight:700;text-transform:uppercase">Sortie</div><div style="color:var(--t1);font-size:12px;font-weight:600">${fmtD(exit.date)}</div></div>
+  </div>`;
+  let hasDeg=false;
+  rooms.forEach(room=>{
+    const its=exit.items.filter(it=>it.room===room);
+    html+=`<div class="sl">${room}</div>`;
+    its.forEach(it=>{
+      const prev=entry.items?.find(x=>x.invId===it.invId);
+      const deg=prev&&stateScore(it.etat)<stateScore(prev?.etat||it.etat);
+      if(deg)hasDeg=true;
+      html+=`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd2);${deg?'background:rgba(255,77,109,.04);border-radius:8px;padding:9px 10px;margin-bottom:3px':''}">
+        <div style="flex:1"><div style="color:${deg?'var(--red)':'var(--t1)'};font-size:13px;font-weight:600">${it.name}${deg?' ⚠':''}</div>${it.notes?`<div style="color:var(--t4);font-size:11px">${it.notes}</div>`:''}</div>
+        <div style="display:flex;gap:7px;align-items:center;flex-shrink:0">
+          ${prev?`<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:${stateColors[prev.etat]||'#888'}22;color:${stateColors[prev.etat]||'#888'}">${prev.etat}</span><span style="color:var(--t4)">→</span>`:''}
+          <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:${stateColors[it.etat]||'#888'}22;color:${stateColors[it.etat]||'#888'}">${it.etat}</span>
+        </div>
+      </div>`;
+      if(it.photos?.length){html+=`<div style="display:flex;gap:5px;overflow-x:auto;padding:6px 0 8px">${it.photos.map(ph=>`<img src="${ph}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer;border:2px solid var(--red)" onclick="viewPhoto('${ph}')">`).join('')}</div>`;}
+    });
+  });
+  html+=`<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-full" onclick="genEDLPdf(${exitId})">📄 Générer PDF</button></div>`;
+  setMod('⚖️ Comparaison Entrée / Sortie',html);
+  openMod();
+}
+
+// ── Signature numérique ──
+function openEDLSign(edlId){
+  setMod('✍ Signature numérique',`
+    <div style="color:var(--t3);font-size:12px;margin-bottom:12px">Le colocataire signe ci-dessous pour valider l'état des lieux</div>
+    <canvas id="sig-canvas" width="400" height="160" style="width:100%;height:160px;background:#fff;border:2px solid var(--bd);border-radius:12px;cursor:crosshair;touch-action:none"></canvas>
+    <div style="display:flex;gap:8px;margin-top:11px">
+      <button class="btn-g" style="flex:1;padding:11px" onclick="clearSig()">🗑 Effacer</button>
+      <button class="btn" style="flex:2;padding:11px" onclick="saveSig(${edlId})">✓ Valider la signature</button>
+    </div>`);
+  openMod();
+  setTimeout(()=>{
+    const canvas=document.getElementById('sig-canvas');if(!canvas)return;
+    const ctx=canvas.getContext('2d');
+    let drawing=false,lx=0,ly=0;
+    ctx.strokeStyle='#0d1020';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+    const getPos=(e,el)=>{const r=el.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(el.width/r.width),y:(t.clientY-r.top)*(el.height/r.height)};};
+    canvas.addEventListener('mousedown',e=>{drawing=true;const pos=getPos(e,canvas);lx=pos.x;ly=pos.y;});
+    canvas.addEventListener('mousemove',e=>{if(!drawing)return;const pos=getPos(e,canvas);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(pos.x,pos.y);ctx.stroke();lx=pos.x;ly=pos.y;});
+    canvas.addEventListener('mouseup',()=>drawing=false);
+    canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const pos=getPos(e,canvas);lx=pos.x;ly=pos.y;},{passive:false});
+    canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const pos=getPos(e,canvas);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(pos.x,pos.y);ctx.stroke();lx=pos.x;ly=pos.y;},{passive:false});
+    canvas.addEventListener('touchend',()=>drawing=false);
+  },100);
+}
+function clearSig(){const c=document.getElementById('sig-canvas');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);}
+function saveSig(edlId){
+  const canvas=document.getElementById('sig-canvas');if(!canvas)return;
+  const p=P();if(!p)return;
+  const e=p.edls.find(x=>x.id===edlId);if(!e)return;
+  e.signature=canvas.toDataURL('image/png',0.8);
+  e.signatureDate=today();
+  addLog(`a signé l'EDL de ${e.tenantName||'parties communes'}`);
+  closeMod();renderTab('edl');scheduleSave();toast('Signature enregistrée ✓','ok');
+}
+
+// ── PDF EDL ──
+function genEDLPdf(edlId){
+  const p=P();if(!p)return;
+  const e=p.edls.find(x=>x.id===edlId);if(!e)return;
+  const hasDamage=(e.items||[]).some(it=>(it.photos||[]).length>0||(it.etat==='Dégradé'||it.etat==='Mauvais'));
+  const stateColors={'Neuf':'#00a86b','Très bon':'#00c853','Bon':'#2ecc71','Bon état':'#2ecc71','Usure normale':'#ff8c42','Correct':'#ff8c42','Dégradé':'#ff4d6d','Mauvais':'#cc0033'};
+  const typeLabel={entry:'ENTRÉE',exit:'SORTIE',intermediate:'INTERMÉDIAIRE'};
+  const rooms=[...new Set((e.items||[]).map(it=>it.room))];
+  let body=`
+    <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e0e0e0">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px">État des lieux</div>
+      <h1 style="font-size:24px;font-weight:800;color:#0d1020;letter-spacing:-.03em;margin-bottom:4px">${typeLabel[e.type]||'EDL'}</h1>
+      <div style="font-size:14px;color:#555">${e.tenantName||'Parties communes'} · ${fmtD(e.date)}</div>
+      <div style="font-size:12px;color:#888;margin-top:4px">${p.info.name} · ${p.info.address}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="background:#f8f9fa;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px">Objets inspectés</div><div style="font-size:20px;font-weight:800;color:#0d1020">${(e.items||[]).length}</div></div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px">Score état</div><div style="font-size:20px;font-weight:800;color:#0d1020">${(()=>{const its=e.items||[];if(!its.length)return'—';const g=its.filter(i=>['Neuf','Très bon','Bon','Bon état'].includes(i.etat)).length;return Math.round(g/its.length*100)+'%';})()}</div></div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px">Dégradations</div><div style="font-size:20px;font-weight:800;color:${hasDamage?'#ff4d6d':'#2ecc71'}">${(e.items||[]).filter(i=>i.etat==='Dégradé'||i.etat==='Mauvais').length}</div></div>
+    </div>`;
+
+  rooms.forEach(room=>{
+    const its=e.items.filter(it=>it.room===room);
+    body+=`<div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;border-bottom:1px solid #e0e0e0;padding-bottom:5px;margin-bottom:10px">${room}</div>
+      ${its.map(it=>`
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #f0f0f0">
+          <div><div style="font-size:13px;font-weight:600;color:#0d1020">${it.name}</div>${it.notes?`<div style="font-size:11px;color:#666;margin-top:2px">${it.notes}</div>`:''}</div>
+          <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;background:${stateColors[it.etat]||'#888'}22;color:${stateColors[it.etat]||'#888'};flex-shrink:0;margin-left:10px">${it.etat}</span>
+        </div>
+        ${(it.photos||[]).length?`<div style="display:flex;gap:8px;padding:8px 0 4px;flex-wrap:wrap">${it.photos.map(ph=>`<img src="${ph}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:2px solid #ff4d6d">`).join('')}</div>`:''}
+      `).join('')}
+    </div>`;
+  });
+
+  if(e.signature){
+    body+=`<div style="margin-top:24px;padding-top:16px;border-top:2px solid #e0e0e0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end">
+        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px">Signature du locataire</div><img src="${e.signature}" style="height:60px;border:1px solid #ddd;border-radius:8px;padding:4px;background:#fff"></div>
+        <div style="text-align:right"><div style="font-size:10px;color:#888">Signé le</div><div style="font-weight:700;color:#0d1020">${fmtD(e.signatureDate)}</div></div>
+      </div>
+    </div>`;
+  }
+
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>EDL ${e.tenantName||''} ${fmtD(e.date)}</title>
+  <style>*{box-sizing:border-box}body{font-family:'Helvetica Neue',Arial,sans-serif;max-width:640px;margin:30px auto;padding:24px;color:#0d1020;font-size:13px;line-height:1.5}@media print{body{margin:0;padding:20px}}</style>
+  </head><body>${body}<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
 }
 
 // ══ INVENTORY ══
