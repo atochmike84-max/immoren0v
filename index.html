@@ -16,6 +16,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp, collection, getDocs }
   from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getStorage, ref, uploadString, getDownloadURL, deleteObject }
+  from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
 const firebaseConfig = {
   apiKey: "AIzaSyCzaajROjfF0BHfWcRQRGni8mBesSz1FgM",
   authDomain: "immoren0v.firebaseapp.com",
@@ -27,8 +29,11 @@ const firebaseConfig = {
 try {
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const storage = getStorage(app);
   window._db = db;
+  window._storage = storage;
   window._fb = { doc, setDoc, getDoc, onSnapshot, serverTimestamp, collection, getDocs };
+  window._fbs = { ref, uploadString, getDownloadURL, deleteObject };
   window._fbOK = true;
 } catch(e) { window._fbOK = false; }
 </script>
@@ -546,6 +551,49 @@ select option{background:var(--bg2)}
 .quit-prev h2{font-size:18px;font-weight:800;margin-bottom:4px;color:#0d1020;letter-spacing:-.02em}
 .quit-prev .quit-line{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee}
 
+/* ── BOTTOM NAV ── */
+#bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--bg2);
+  border-top:1px solid var(--bd);
+  display:flex;align-items:stretch;
+  height:58px;z-index:100;
+  padding-bottom:env(safe-area-inset-bottom,0);
+}
+.bnav{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  border:none;background:none;cursor:pointer;
+  font-family:inherit;gap:3px;
+  color:var(--t4);transition:all .15s;
+  padding:6px 4px;
+  position:relative;
+}
+.bnav.on{color:var(--gold)}
+.bnav.on::after{
+  content:'';position:absolute;top:0;left:20%;right:20%;
+  height:2px;background:var(--gold);border-radius:0 0 3px 3px;
+}
+.bnav-ic{font-size:18px;line-height:1}
+.bnav-lb{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.bnav-badge{position:absolute;top:4px;right:calc(50% - 16px);background:var(--red);color:#fff;font-size:8px;font-weight:800;min-width:14px;height:14px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 3px}
+
+/* ── SUB TABS (context bar) ── */
+#ctx-sub{overflow-x:auto;scrollbar-width:none;display:flex;gap:5px}
+#ctx-sub::-webkit-scrollbar{display:none}
+.stb{
+  flex:0 0 auto;border:1.5px solid var(--bd);
+  border-radius:99px;background:var(--bg3);
+  color:var(--t3);font-size:11px;font-weight:700;
+  padding:5px 12px;cursor:pointer;font-family:inherit;
+  white-space:nowrap;transition:all .15s;
+}
+.stb.on{border-color:var(--gold);background:var(--gold3);color:var(--gold)}
+
+/* ── NOTES CARD ── */
+.notes-area{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:12px;padding:12px 14px;color:var(--t1);font-size:13px;font-family:inherit;outline:none;resize:none;min-height:80px;line-height:1.6;transition:border-color .18s}
+.notes-area:focus{border-color:var(--gold)}
+
 @media(max-width:380px){
   .kg3{grid-template-columns:1fr 1fr}
   .prop-grid{grid-template-columns:1fr}
@@ -639,20 +687,32 @@ select option{background:var(--bg2)}
     <span id="sync-txt" style="color:var(--green)">⬤ Synchronisé</span>
     <div id="online-users" style="display:flex;gap:9px"></div>
   </div>
-  <div class="tabs" id="det-tabs">
-    <button class="tb on" onclick="goTab('dashboard',this)">⬡ Accueil</button>
-    <button class="tb"    onclick="goTab('planning',this)">▦ Planning</button>
-    <button class="tb"    onclick="goTab('works',this)">⚙ Travaux</button>
-    <button class="tb"    onclick="goTab('artisans',this)">◈ Artisans</button>
-    <button class="tb"    onclick="goTab('tenants',this)">👤 Locataires</button>
-    <button class="tb"    onclick="goTab('rents',this)">💰 Loyers</button>
-    <button class="tb"    onclick="goTab('charges',this)">📋 Charges</button>
-    <button class="tb"    onclick="goTab('expenses',this)">🧾 Dépenses</button>
-    <button class="tb"    onclick="goTab('edl',this)">📄 État lieux</button>
-    <button class="tb"    onclick="goTab('inventory',this)">🛋 Mobilier</button>
-    <button class="tb"    onclick="goTab('budget',this)">◉ Budget</button>
+  <!-- Barre de contexte active -->
+  <div id="ctx-bar" style="background:var(--bg2);border-bottom:1px solid var(--bd);padding:8px 15px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div id="ctx-title" style="color:var(--t1);font-size:13px;font-weight:700"></div>
+    <div id="ctx-sub" style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none"></div>
   </div>
-  <div class="scroll" id="tab-ct"></div>
+  <div class="scroll" id="tab-ct" style="padding-bottom:72px"></div>
+  <!-- BOTTOM NAV -->
+  <nav id="bottom-nav">
+    <button class="bnav on" onclick="goTab('dashboard')" data-tab="dashboard">
+      <span class="bnav-ic">⬡</span><span class="bnav-lb">Accueil</span>
+    </button>
+    <button class="bnav" onclick="goTab('location')" data-tab="location">
+      <span class="bnav-ic">👤</span><span class="bnav-lb">Location</span>
+      <span class="bnav-badge" style="display:none">0</span>
+    </button>
+    <button class="bnav" onclick="goTab('finances')" data-tab="finances">
+      <span class="bnav-ic">💰</span><span class="bnav-lb">Finances</span>
+      <span class="bnav-badge" style="display:none">0</span>
+    </button>
+    <button class="bnav" onclick="goTab('travaux')" data-tab="travaux">
+      <span class="bnav-ic">⚙</span><span class="bnav-lb">Travaux</span>
+    </button>
+    <button class="bnav" onclick="goTab('docs')" data-tab="docs">
+      <span class="bnav-ic">📋</span><span class="bnav-lb">Docs</span>
+    </button>
+  </nav>
 </div>
 
 <!-- SCANNER PLEIN ÉCRAN -->
@@ -721,15 +781,18 @@ const TYPES=['Appartement','Maison','Studio','Local commercial','Immeuble','Terr
 const SMAP={renovation:'En rénovation',ready:'Prêt à louer',rented:'Loué',sold:'Vendu'};
 const SCOL={renovation:'#f39c12',ready:'#3498db',rented:'#2ecc71',sold:'#888'};
 const PAL=['#c9a96e','#e74c3c','#3498db','#f39c12','#9b59b6','#1abc9c','#e67e22','#2ecc71','#16a085','#e91e63','#00bcd4','#ff5722'];
+const DPE_COLOR={A:'#00a86b',B:'#4caf50',C:'#8bc34a',D:'#ffc107',E:'#ff9800',F:'#f44336',G:'#b71c1c'};
 const CHARGE_CATS=['Taxes','Assurance PNO','Assurance GLI','Charges copro','Entretien','Eau','Electricité','Gaz','Internet','Autre'];
+const CHARGE_RECUPERABLE={'Taxes':false,'Assurance PNO':false,'Assurance GLI':false,'Charges copro':true,'Entretien':true,'Eau':true,'Electricité':true,'Gaz':true,'Internet':false,'Autre':false};
 const CHARGE_FREQ={monthly:'Mensuelle',quarterly:'Trimestrielle',annual:'Annuelle',once:'Unique'};
 const EXP_CATS=['Travaux','Entretien','Matériaux','Charges','Déplacement','Administratif','Autre'];
 const PAYER_IC={moi:'👤',associe:'🤝',commun:'🏦'};
 const PAYER_LB={moi:'Moi',associe:'Associé',commun:'Commun'};
 const PAYER_CL={moi:'#c9a96e',associe:'#3498db',commun:'#2ecc71'};
 const REC_FREQ={monthly:'Mensuelle',quarterly:'Trimestrielle',annual:'Annuelle'};
-const EDL_ETAT=['Neuf','Très bon','Bon état','Correct','Usure normale','Dégradé','À rénover'];
-const INV_ETAT=['Neuf','Très bon','Bon','Passable','Mauvais'];
+// États unifiés pour EDL et Inventaire
+const EDL_ETAT=['Neuf','Très bon','Bon','Usure normale','Dégradé','Mauvais'];
+const INV_ETAT=['Neuf','Très bon','Bon','Usure normale','Dégradé','Mauvais'];
 
 // ══ STATE ══
 let STATE={properties:{},partners:[]};
@@ -890,17 +953,70 @@ function openProperty(id){
   curId=id;const p=STATE.properties[id];if(!p)return;ensure(p);
   document.getElementById('d-name').textContent=p.info.name;
   document.getElementById('d-addr').textContent=p.info.address;
-  document.querySelectorAll('#det-tabs .tb').forEach((b,i)=>b.classList.toggle('on',i===0));
-  curTab='dashboard';showPage('detail-page');renderTab('dashboard');
+  curTab='dashboard';showPage('detail-page');goTab('dashboard');
 }
-function goTab(tab,btn){
-  if(btn){document.querySelectorAll('#det-tabs .tb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
-  curTab=tab;renderTab(tab);
-  document.getElementById('tab-ct').scrollTop=0;
+// ── NAVIGATION GROUPES ──
+const NAV_GROUPS={
+  dashboard:{label:'Accueil',sub:[]},
+  location:{label:'Location',sub:[
+    {id:'tenants',label:'👤 Locataires'},
+    {id:'rents',label:'💰 Loyers'},
+    {id:'edl',label:'📄 EDL'},
+    {id:'inventory',label:'🛋 Mobilier'},
+  ]},
+  finances:{label:'Finances',sub:[
+    {id:'budget',label:'◉ Budget'},
+    {id:'charges',label:'📋 Charges'},
+    {id:'expenses',label:'🧾 Dépenses'},
+  ]},
+  travaux:{label:'Travaux',sub:[
+    {id:'works',label:'⚙ Phases'},
+    {id:'planning',label:'▦ Planning'},
+    {id:'artisans',label:'◈ Artisans'},
+  ]},
+  docs:{label:'Docs & Notes',sub:[
+    {id:'notes',label:'📝 Notes'},
+    {id:'gallery',label:'📸 Galerie'},
+    {id:'docslocataires',label:'📁 Dossiers'},
+  ]},
+};
+// Mapping sous-tab → groupe parent
+const TAB_PARENT={};
+Object.entries(NAV_GROUPS).forEach(([g,v])=>{
+  v.sub.forEach(s=>TAB_PARENT[s.id]=g);
+  TAB_PARENT[g]=g;
+});
+
+function goTab(tab){
+  const group=TAB_PARENT[tab]||tab;
+  // Activer le bon bouton bottom nav
+  document.querySelectorAll('.bnav').forEach(b=>{
+    b.classList.toggle('on',b.dataset.tab===group);
+  });
+  // Mettre à jour la barre de contexte
+  const grp=NAV_GROUPS[group];
+  const ctxTitle=document.getElementById('ctx-title');
+  const ctxSub=document.getElementById('ctx-sub');
+  if(ctxTitle)ctxTitle.textContent=grp?.label||'';
+  if(ctxSub){
+    if(grp?.sub?.length){
+      const actualTab=(grp.sub.some(s=>s.id===tab)?tab:grp.sub[0]?.id)||tab;
+      ctxSub.innerHTML=grp.sub.map(s=>`<button class="stb${s.id===actualTab?' on':''}" onclick="goTab('${s.id}')">${s.label}</button>`).join('');
+      if(tab===group&&grp.sub.length)tab=grp.sub[0].id;
+    } else {
+      ctxSub.innerHTML='';
+    }
+  }
+  curTab=tab;
+  renderTab(tab);
+  const el=document.getElementById('tab-ct');if(el)el.scrollTop=0;
 }
 function renderTab(tab){
   const el=document.getElementById('tab-ct');if(!el)return;
-  const r={dashboard:rDash,planning:rPlanning,works:rWorks,artisans:rArtisans,tenants:rTenants,rents:rRents,charges:rCharges,expenses:rExpenses,edl:rEDL,inventory:rInventory,budget:rBudget};
+  const r={dashboard:rDash,planning:rPlanning,works:rWorks,artisans:rArtisans,
+    tenants:rTenants,rents:rRents,charges:rCharges,expenses:rExpenses,
+    edl:rEDL,inventory:rInventory,budget:rBudget,notes:rNotes,
+    gallery:rGallery,docslocataires:rDocsLocataires};
   if(r[tab])r[tab](el);else el.innerHTML='<div class="empty">Section en cours...</div>';
 }
 
@@ -985,6 +1101,52 @@ function resizeImg(src,maxPx,q,cb){
   };
   img.src=src;
 }
+
+// ══ FIREBASE STORAGE UPLOAD ══
+// Retourne une URL publique Firebase Storage
+// Si Storage indisponible, retourne le base64 en fallback
+async function uploadPhoto(base64data, path){
+  if(!window._fbOK||!window._storage||!window._fbs){
+    // Fallback: retourner le base64 directement
+    return base64data;
+  }
+  try{
+    const{ref,uploadString,getDownloadURL}=window._fbs;
+    // path ex: "projects/monprojet/expenses/1234567890.jpg"
+    const storageRef=ref(window._storage, path);
+    // uploadString accepte le format base64 data URL
+    await uploadString(storageRef, base64data, 'data_url');
+    const url=await getDownloadURL(storageRef);
+    return url;
+  }catch(err){
+    console.warn('Storage upload failed, using base64 fallback:', err.message);
+    return base64data;
+  }
+}
+
+// Supprimer une photo de Storage (si c'est une URL Firebase)
+async function deletePhoto(urlOrBase64){
+  if(!urlOrBase64||urlOrBase64.startsWith('data:')||!window._fbs)return;
+  try{
+    const{ref,deleteObject}=window._fbs;
+    const storageRef=ref(window._storage, urlOrBase64);
+    await deleteObject(storageRef);
+  }catch{}
+}
+
+// Générer un chemin unique pour une photo
+function photoPath(category, id){
+  const pid=SES?.projectId||'default';
+  return `projects/${pid}/${category}/${id}_${Date.now()}.jpg`;
+}
+
+// Afficher un toast de chargement pendant l'upload
+function uploadingToast(show){
+  const t=document.getElementById('toast');
+  if(show){t.textContent='⬆ Upload photo...';t.className='on';t._uploading=true;}
+  else if(t._uploading){t.className='';t._uploading=false;}
+}
+
 function processCapture(photo){
   if(scanMode==='expense')openExpenseModal(null,photo);
   else if(scanMode==='tenant-doc')saveTenantDoc(photo);
@@ -1067,9 +1229,24 @@ function getReminders(){
   return out;
 }
 function updateReminderBadge(){
-  const n=getReminders().filter(r=>r.urgent).length;
-  const b=document.getElementById('notif-count');if(!b)return;
-  b.textContent=n;b.style.display=n?'inline-flex':'none';
+  const reminders=getReminders();
+  const n=reminders.filter(r=>r.urgent).length;
+  // Portfolio badge
+  const b=document.getElementById('notif-count');if(b){b.textContent=n;b.style.display=n?'inline-flex':'none';}
+  // Bottom nav finances badge (unpaid charges)
+  const p=P();
+  const finBadge=document.querySelector('.bnav[data-tab="finances"] .bnav-badge');
+  if(finBadge){
+    const fc=p?p.charges.filter(c=>!c.paid&&c.nextDate&&new Date(c.nextDate+'T12:00:00')<=new Date()).length:0;
+    finBadge.textContent=fc;finBadge.style.display=fc?'flex':'none';
+  }
+  // Bottom nav location badge (unpaid rents)
+  const locBadge=document.querySelector('.bnav[data-tab="location"] .bnav-badge');
+  if(locBadge&&p){
+    const tm=thisMonth();const activeT=p.tenants.filter(t=>t.status==='active');
+    const unpaid=activeT.filter(t=>!p.rents.some(r=>r.tenantId===t.id&&r.month===tm&&r.paid)).length;
+    locBadge.textContent=unpaid;locBadge.style.display=unpaid?'flex':'none';
+  }
 }
 function showReminders(){
   const list=getReminders();
@@ -1123,7 +1300,10 @@ function renderPortfolio(){
     return`<div class="pc" onclick="openProperty(${p.id})">
       <div class="pc-stripe" style="background:${p.info.color}"></div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div style="display:flex;gap:7px;align-items:center">
         <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${p.info.color}">${p.info.type}${p.info.surface?' · '+p.info.surface+'m²':''}</div>
+        ${p.info.dpe?`<span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:5px;background:${DPE_COLOR[p.info.dpe]||'#888'};color:#fff">${p.info.dpe}</span>`:''}
+      </div>
         ${tag(SMAP[p.info.status]||'—',SCOL[p.info.status]||'#888')}
       </div>
       <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;color:var(--t1);margin-bottom:2px;letter-spacing:-.01em">${p.info.name}</div>
@@ -1161,7 +1341,15 @@ function openPropModal(id){
       <div class="field"><label>Prix achat €</label><input class="inp" id="f-price" type="number" value="${f.purchasePrice}"></div>
       <div class="field"><label>Loyer cible €/mois</label><input class="inp" id="f-rent" type="number" value="${f.targetRent}"></div>
     </div>
-    <div class="field"><label>Statut</label><select class="inp" id="f-status">${Object.entries(SMAP).map(([k,v])=>`<option value="${k}" ${f.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
+    <div class="g2">
+      <div class="field"><label>Statut</label><select class="inp" id="f-status">${Object.entries(SMAP).map(([k,v])=>`<option value="${k}" ${f.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label>DPE / Classe énergie</label>
+        <select class="inp" id="f-dpe">
+          <option value="">— Non renseigné —</option>
+          ${['A','B','C','D','E','F','G'].map(l=>`<option value="${l}" ${f.dpe===l?'selected':''}>${l} ${l==='F'||l==='G'?'⚠ Passoire thermique':l==='A'||l==='B'?'✓ Performant':''}</option>`).join('')}
+        </select>
+      </div>
+    </div>
     <div class="field"><label>Couleur</label>
       <div class="cdots">${PAL.map(c=>`<div class="cdot${f.color===c?' sel':''}" style="background:${c}" onclick="pickCol('${c}',this)"></div>`).join('')}</div>
       <input type="hidden" id="f-color" value="${f.color}">
@@ -1171,15 +1359,22 @@ function openPropModal(id){
 }
 function pickCol(c,el){document.querySelectorAll('.cdot').forEach(d=>d.classList.remove('sel'));el.classList.add('sel');document.getElementById('f-color').value=c;}
 function saveProp(id){
-  const info={name:document.getElementById('f-name').value.trim(),address:document.getElementById('f-addr').value.trim(),type:document.getElementById('f-type').value,surface:parseFloat(document.getElementById('f-surf').value)||0,purchasePrice:parseFloat(document.getElementById('f-price').value)||0,targetRent:parseFloat(document.getElementById('f-rent').value)||0,status:document.getElementById('f-status').value,color:document.getElementById('f-color').value};
+  const info={name:document.getElementById('f-name').value.trim(),address:document.getElementById('f-addr').value.trim(),type:document.getElementById('f-type').value,surface:parseFloat(document.getElementById('f-surf').value)||0,purchasePrice:parseFloat(document.getElementById('f-price').value)||0,targetRent:parseFloat(document.getElementById('f-rent').value)||0,status:document.getElementById('f-status').value,color:document.getElementById('f-color').value,dpe:document.getElementById('f-dpe')?.value||''};
   if(!info.name){alert('Le nom est requis.');return;}
   if(id&&STATE.properties[id]){STATE.properties[id].info=info;if(curId===id){document.getElementById('d-name').textContent=info.name;document.getElementById('d-addr').textContent=info.address;}}
   else{const nid=Date.now();STATE.properties[nid]={id:nid,info,phases:[],materials:[],artisans:[],tenants:[],rents:[],charges:[],expenses:[],edls:[],inventory:[],events:[],activityLog:[]};}
   closeMod();renderPortfolio();scheduleSave();toast('Bien enregistré ✓','ok');
 }
 function delProp(id){
-  if(!confirm('Supprimer ce bien et toutes ses données ?'))return;
-  delete STATE.properties[id];renderPortfolio();scheduleSave();toast('Supprimé');
+  const p=STATE.properties[id];if(!p)return;
+  const name=p.info?.name||'ce bien';
+  if(!confirm(`⚠️ Supprimer "${name}" ?
+
+Toutes les données seront perdues définitivement (locataires, loyers, dépenses, photos...).`))return;
+  if(!confirm(`Confirmer la suppression de "${name}" ?`))return;
+  delete STATE.properties[id];
+  if(curId===id){curId=null;}
+  renderPortfolio();scheduleSave();toast('Bien supprimé');
 }
 
 // ══ MODAL HELPERS ══
@@ -1188,7 +1383,7 @@ function openMod(){document.getElementById('mov').classList.add('on');}
 function closeMod(e){if(e&&e.target!==document.getElementById('mov'))return;document.getElementById('mov').classList.remove('on');}
 function toast(m,type=''){
   const t=document.getElementById('toast');t.textContent=m;t.className='on'+(type?' '+type:'');
-  clearTimeout(t._t);t._t=setTimeout(()=>t.className='',2800);
+  clearTimeout(t._t);t._t=setTimeout(()=>{t.className='';},type?3500:2500);
 }
 function delItem(col,id){
   const p=P();if(!p||!p[col])return;
@@ -1210,17 +1405,29 @@ function rDash(el){
   const tExp=expenses.reduce((s,e)=>s+e.amount,0);
   const grand=info.purchasePrice+budget;
   const roiN=grand>0?((info.targetRent*12-chAnn)/grand*100).toFixed(2):'—';
-  const actT=tenants.find(t=>t.status==='active');
+  const activeT=tenants.filter(t=>t.status==='active');
   const tm=thisMonth();
-  const rentTm=rents.find(r=>r.month===tm);
+  const rentsTm=rents.filter(r=>r.month===tm);
+  const paidTm=rentsTm.filter(r=>r.paid).length;
+  const unpaidTm=activeT.length-paidTm;
   const byP={moi:0,associe:0,commun:0};expenses.forEach(e=>{if(byP[e.paidBy]!==undefined)byP[e.paidBy]+=e.amount;});
   const log=[...(activityLog||[])].reverse().slice(0,5);
+  // Alertes urgentes
+  const alerts=[];
+  if(unpaidTm>0)alerts.push({type:'danger',msg:`${unpaidTm} loyer(s) impayé(s) ce mois`,action:`goTab('rents')`});
+  charges.filter(c=>!c.paid&&c.nextDate&&new Date(c.nextDate+'T12:00:00')<=new Date()).forEach(c=>alerts.push({type:'danger',msg:`Charge en retard : ${c.name}`,action:`goTab('charges')`}));
+  charges.filter(c=>!c.paid&&c.nextDate&&new Date(c.nextDate+'T12:00:00')>new Date()&&(new Date(c.nextDate+'T12:00:00')-new Date())<30*86400000).forEach(c=>alerts.push({type:'warn',msg:`Charge à payer bientôt : ${c.name} (${fmtD(c.nextDate)})`,action:`goTab('charges')`}));
+  expenses.filter(e=>e.recurring&&e.nextDate&&new Date(e.nextDate+'T12:00:00')<=new Date()).forEach(e=>alerts.push({type:'warn',msg:`Dépense récurrente : ${e.label}`,action:`goTab('expenses')`}));
+  activeT.filter(t=>t.leaseEnd&&(new Date(t.leaseEnd+'T12:00:00')-new Date())<90*86400000&&new Date(t.leaseEnd+'T12:00:00')>=new Date()).forEach(t=>alerts.push({type:'warn',msg:`Bail expire bientôt : ${t.name} (${fmtD(t.leaseEnd)})`,action:`goTab('tenants')`}));
 
   el.innerHTML=`
   <div style="background:linear-gradient(135deg,var(--bg2),var(--bg3));border:1px solid var(--bd);border-radius:var(--r);padding:15px 16px;margin-bottom:11px">
     <div style="color:${info.color};font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px">${info.type}${info.surface?' · '+info.surface+' m²':''}</div>
     <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--t1);margin-bottom:2px">${info.name}</div>
-    <div style="color:var(--t4);font-size:11px;margin-bottom:12px">${info.address}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <div style="color:var(--t4);font-size:11px">${info.address}</div>
+      ${info.dpe?`<span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;background:${DPE_COLOR[info.dpe]||'#888'};color:#fff">DPE ${info.dpe}</span>`:''}
+    </div>
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div><div style="color:var(--t4);font-size:9px;font-weight:700;text-transform:uppercase">Prix achat</div><div style="color:${info.color};font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em">${fmt(info.purchasePrice)}</div></div>
       <div><div style="color:var(--t4);font-size:9px;font-weight:700;text-transform:uppercase">Loyer/mois</div><div style="color:var(--green);font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em">${fmt(info.targetRent)}</div></div>
@@ -1228,17 +1435,29 @@ function rDash(el){
     </div>
   </div>
 
-  ${actT?`<div class="card" style="border-left:3px solid ${rentTm?.paid?'var(--green)':'var(--red)'};margin-bottom:11px">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="display:flex;gap:10px;align-items:center">
-        <div style="width:38px;height:38px;border-radius:10px;background:rgba(201,169,110,.15);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--gold)">${actT.name[0].toUpperCase()}</div>
-        <div><div style="color:var(--t1);font-weight:700">${actT.name}</div><div style="color:var(--t4);font-size:11px">Bail → ${fmtD(actT.leaseEnd)}</div></div>
-      </div>
-      <div style="text-align:right">
-        <div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Loyer ${fmtM(tm)}</div>
-        <div style="color:${rentTm?.paid?'var(--green)':'var(--red)'};font-weight:700">${rentTm?.paid?'✓ Payé':'⚠ En attente'}</div>
-      </div>
-    </div>
+  ${alerts.length?`<div style="margin-bottom:12px">${alerts.map(a=>`
+    <div onclick="${a.action}" style="display:flex;align-items:center;gap:10px;background:${a.type==='danger'?'var(--red2)':'var(--orange2)'};border:1px solid ${a.type==='danger'?'rgba(255,77,109,.3)':'rgba(255,140,66,.3)'};border-radius:12px;padding:11px 13px;margin-bottom:7px;cursor:pointer">
+      <span style="font-size:17px">${a.type==='danger'?'🔴':'🟡'}</span>
+      <div style="flex:1;color:${a.type==='danger'?'var(--red)':'var(--orange)'};font-size:13px;font-weight:600">${a.msg}</div>
+      <span style="color:var(--t4);font-size:16px">›</span>
+    </div>`).join('')}</div>`:''}
+
+  ${activeT.length?`<div class="card" style="margin-bottom:11px">
+    <div class="sl" style="margin-bottom:9px">Locataires · ${fmtM(tm)}</div>
+    ${activeT.map(t=>{
+      const r=rentsTm.find(x=>x.tenantId===t.id);
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd2)">
+        <div style="display:flex;gap:9px;align-items:center">
+          <div style="width:34px;height:34px;border-radius:9px;background:${r?.paid?'var(--green2)':'var(--red2)'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${r?.paid?'var(--green)':'var(--red)'}">${t.name[0].toUpperCase()}</div>
+          <div><div style="color:var(--t1);font-weight:600;font-size:13px">${t.name}</div><div style="color:var(--t4);font-size:10px">Bail → ${fmtD(t.leaseEnd)}</div></div>
+        </div>
+        <div style="text-align:right">
+          <div style="color:${r?.paid?'var(--green)':'var(--red)'};font-weight:700;font-size:13px">${r?.paid?'✓ Payé':'⚠ Impayé'}</div>
+          <div style="color:var(--t4);font-size:10px">${fmt(t.rent)}/mois</div>
+        </div>
+      </div>`;
+    }).join('')}
+    <button class="btn-g" style="width:100%;margin-top:10px;padding:10px" onclick="goTab('rents')">Gérer les loyers →</button>
   </div>`:''}
 
   ${phases.length?`<div class="card" style="margin-bottom:11px">
@@ -1260,6 +1479,8 @@ function rDash(el){
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('rents')">💰 Gérer loyers</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('tenants')">👤 Locataires</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('edl')">📄 État des lieux</button>
+      <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="openSimulateur()">🧮 Simulateur</button>
+      <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('notes')">📝 Notes</button>
     </div>
   </div>
 
@@ -1346,11 +1567,14 @@ function rWorks(el){
     </div>`).join('')}
   ${!(p.phases||[]).length?'<div class="empty">Aucune phase de travaux</div>':''}`;
 }
-function savePhasePhoto(photo){
+async function savePhasePhoto(photo){
   const p=P();if(!p)return;
   const ph=p.phases.find(x=>x.id===scanPhaseId);if(!ph)return;
   if(!ph.photos)ph.photos=[];
-  ph.photos.push(photo);addLog(`a ajouté une photo à "${ph.name}"`);
+  uploadingToast(true);
+  const url=await uploadPhoto(photo, photoPath('phases/'+scanPhaseId,'ph'));
+  uploadingToast(false);
+  ph.photos.push(url);addLog(`a ajouté une photo à "${ph.name}"`);
   renderTab('works');scheduleSave();toast('Photo ajoutée ✓','ok');
 }
 function openPhaseModal(id){
@@ -1403,7 +1627,8 @@ function rArtisans(el){
         ${tag(SL[a.status],SC[a.status])}
       </div>
       <div style="margin-bottom:7px">${stars(a.rating)}</div>
-      <div style="color:var(--t3);font-size:12px;margin-bottom:9px">📞 ${a.phone}${a.email?' · ✉ '+a.email:''}</div>
+      <div style="color:var(--t3);font-size:12px;margin-bottom:9px">📞 ${a.phone}${a.email?' · ✉ '+a.email:''}${a.phaseId?` · 🔗 ${P()?.phases?.find(ph=>ph.id==a.phaseId)?.name||'Phase liée'}`:''}
+      </div>
       <div style="display:flex;gap:14px;padding:9px 0;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);margin-bottom:10px">
         <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Devis</div><div style="font-weight:700">${fmt(a.quote)}</div></div>
         <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Facture</div><div style="font-weight:700;color:${a.invoice!=null?(diff>0?'var(--red)':'var(--green)'):'var(--t4)'}">${a.invoice!=null?fmt(a.invoice):'En attente'}</div></div>
@@ -1429,6 +1654,12 @@ function openArtModal(id){
       <div class="field"><label>Facture €</label><input class="inp" id="f-inv" type="number" value="${f.invoice||''}"></div>
     </div>
     <div class="field"><label>Note : <span id="sl">${f.rating}/5</span></label><input type="range" min="1" max="5" value="${f.rating}" id="f-r" style="width:100%;accent-color:var(--gold)" oninput="document.getElementById('sl').textContent=this.value+'/5'"></div>
+    <div class="field"><label>Phase de travaux associée</label>
+      <select class="inp" id="f-phase">
+        <option value="">— Aucune —</option>
+        ${(P()?.phases||[]).map(ph=>`<option value="${ph.id}" ${f.phaseId==ph.id?'selected':''}>${ph.name}</option>`).join('')}
+      </select>
+    </div>
     <div class="field"><label>Notes</label><textarea class="inp" id="f-notes">${f.notes||''}</textarea></div>
     <button class="btn btn-full" onclick="saveArt(${id||0})">Enregistrer</button>`);
   openMod();
@@ -1436,7 +1667,7 @@ function openArtModal(id){
 function saveArt(id){
   const p=P();if(!p)return;ensure(p);
   const inv=document.getElementById('f-inv').value;
-  const item={name:document.getElementById('f-name').value.trim(),trade:document.getElementById('f-trade').value.trim(),phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),status:document.getElementById('f-st').value,quote:parseFloat(document.getElementById('f-q').value)||0,invoice:inv?parseFloat(inv):null,rating:parseInt(document.getElementById('f-r').value),notes:document.getElementById('f-notes').value.trim()};
+  const item={name:document.getElementById('f-name').value.trim(),trade:document.getElementById('f-trade').value.trim(),phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),status:document.getElementById('f-st').value,quote:parseFloat(document.getElementById('f-q').value)||0,invoice:inv?parseFloat(inv):null,rating:parseInt(document.getElementById('f-r').value),notes:document.getElementById('f-notes').value.trim(),phaseId:parseInt(document.getElementById('f-phase')?.value)||null};
   if(!item.name){alert('Nom requis.');return;}
   if(id){p.artisans=p.artisans.map(a=>a.id===id?{...item,id}:a);}
   else{p.artisans.push({...item,id:Date.now()});addLog(`a ajouté artisan "${item.name}"`);}
@@ -1459,6 +1690,7 @@ function rTenants(el){
           <div>
             <div style="color:var(--t1);font-size:15px;font-weight:700">${t.name}</div>
             <div style="color:var(--t4);font-size:11px">${t.phone||''}${t.email?' · '+t.email:''}</div>
+          ${t.garantName?`<div style="color:var(--blue);font-size:10px;margin-top:2px">🛡 Garant : ${t.garantName}</div>`:''} 
           </div>
         </div>
         ${tag(t.status==='active'?'Actif':'Parti',t.status==='active'?'#2ecc71':'#888')}
@@ -1511,13 +1743,21 @@ function openTenantModal(id){
     <div class="g2"><div class="field"><label>Début de bail</label><input class="inp" id="f-ls" type="date" value="${f.leaseStart}"></div><div class="field"><label>Fin de bail</label><input class="inp" id="f-le" type="date" value="${f.leaseEnd}"></div></div>
     <div class="g2"><div class="field"><label>Loyer mensuel €</label><input class="inp" id="f-rent" type="number" value="${f.rent}"></div><div class="field"><label>Dépôt de garantie €</label><input class="inp" id="f-dep" type="number" value="${f.deposit}"></div></div>
     <div class="field"><label>Statut</label><select class="inp" id="f-st"><option value="active" ${f.status==='active'?'selected':''}>Actif</option><option value="inactive" ${f.status==='inactive'?'selected':''}>Parti</option></select></div>
+    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:13px;margin-bottom:13px">
+      <div style="color:var(--t2);font-size:12px;font-weight:700;margin-bottom:10px">🛡 Garant (optionnel)</div>
+      <div class="g2">
+        <div class="field" style="margin-bottom:8px"><label>Nom du garant</label><input class="inp" id="f-garant-name" value="${f.garantName||''}" placeholder="Nom complet"></div>
+        <div class="field" style="margin-bottom:8px"><label>Téléphone</label><input class="inp" id="f-garant-phone" type="tel" value="${f.garantPhone||''}"></div>
+      </div>
+      <div class="field" style="margin-bottom:0"><label>Email</label><input class="inp" id="f-garant-email" type="email" value="${f.garantEmail||''}"></div>
+    </div>
     <div class="field"><label>Notes</label><textarea class="inp" id="f-notes">${f.notes||''}</textarea></div>
     <button class="btn btn-full" onclick="saveTenant(${id||0})">Enregistrer</button>`);
   openMod();
 }
 function saveTenant(id){
   const p=P();if(!p)return;ensure(p);
-  const item={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),leaseStart:document.getElementById('f-ls').value,leaseEnd:document.getElementById('f-le').value,rent:parseFloat(document.getElementById('f-rent').value)||0,deposit:parseFloat(document.getElementById('f-dep').value)||0,status:document.getElementById('f-st').value,notes:document.getElementById('f-notes').value.trim()};
+  const item={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),leaseStart:document.getElementById('f-ls').value,leaseEnd:document.getElementById('f-le').value,rent:parseFloat(document.getElementById('f-rent').value)||0,deposit:parseFloat(document.getElementById('f-dep').value)||0,status:document.getElementById('f-st').value,notes:document.getElementById('f-notes').value.trim(),garantName:document.getElementById('f-garant-name')?.value.trim()||'',garantPhone:document.getElementById('f-garant-phone')?.value.trim()||'',garantEmail:document.getElementById('f-garant-email')?.value.trim()||''};
   if(!item.name){alert('Nom requis.');return;}
   if(id){const old=p.tenants.find(t=>t.id===id);p.tenants=p.tenants.map(t=>t.id===id?{...item,id,docs:old?.docs||[]}:t);addLog(`a modifié "${item.name}"`);}
   else{p.tenants.push({...item,id:Date.now(),docs:[]});addLog(`a ajouté locataire "${item.name}"`);}
@@ -1526,6 +1766,7 @@ function saveTenant(id){
 function saveTenantDoc(photo){
   const p=P();if(!p)return;ensure(p);
   const t=p.tenants.find(x=>x.id===scanTenantId);if(!t)return;
+  window._pendingDocPhoto=photo;
   setMod('Nommer le document',`
     <img src="${photo}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-bottom:13px">
     <div class="field"><label>Type de document</label>
@@ -1534,16 +1775,22 @@ function saveTenantDoc(photo){
       </select>
     </div>
     <div class="field"><label>Nom personnalisé (optionnel)</label><input class="inp" id="f-docname" placeholder="ex: Passeport 2025"></div>
-    <button class="btn btn-full" onclick="confirmTenantDoc(${scanTenantId},'${photo.replace(/'/g,"\\'")}')">Enregistrer dans le dossier</button>`);
+    <button class="btn btn-full" onclick="confirmTenantDoc(${scanTenantId})">Enregistrer dans le dossier</button>`);
   openMod();
 }
-function confirmTenantDoc(tid,photo){
+async function confirmTenantDoc(tid){
   const p=P();if(!p)return;ensure(p);
   const t=p.tenants.find(x=>x.id===tid);if(!t)return;if(!t.docs)t.docs=[];
   const type=document.getElementById('f-doctype').value;
   const name=document.getElementById('f-docname').value.trim()||type;
-  t.docs.push({id:Date.now(),label:name,type,photo,date:today()});
+  const photo=window._pendingDocPhoto;
+  if(!photo){toast('Erreur : photo manquante','err');return;}
+  uploadingToast(true);
+  const url=await uploadPhoto(photo, photoPath('tenants/'+tid,'doc'));
+  uploadingToast(false);
+  t.docs.push({id:Date.now(),label:name,type,photo:url,date:today()});
   addLog(`a ajouté "${name}" au dossier de ${t.name}`);
+  window._pendingDocPhoto=null;
   closeMod();renderTab('tenants');scheduleSave();toast('Document enregistré ✓','ok');
 }
 function viewDocModal(tid,idx){
@@ -1568,50 +1815,130 @@ function deleteDoc(tid,idx){
 // ══ RENTS ══
 function rRents(el){
   const p=P();if(!p)return;ensure(p);
-  const rents=[...p.rents].sort((a,b)=>b.month.localeCompare(a.month));
+  const tm=thisMonth();
+  const activeT=p.tenants.filter(t=>t.status==='active');
+  // KPIs
   const tPaid=p.rents.filter(r=>r.paid).reduce((s,r)=>s+r.amount,0);
-  const unpaid=p.rents.filter(r=>!r.paid).length;
+  const tUnpaid=p.rents.filter(r=>!r.paid&&r.month===tm).length;
+  const thisMonthRents=p.rents.filter(r=>r.month===tm);
 
   el.innerHTML=`
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <h3 class="section-h" style="margin:0">Suivi loyers</h3>
-    <button class="btn btn-sm" onclick="openRentModal()">+ Loyer</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 class="section-h" style="margin:0">Loyers</h3>
+    <div style="display:flex;gap:7px">
+      <button class="btn-g btn-sm" onclick="exportRentsPDF()">📄</button>
+      ${activeT.length?`<button class="btn-g btn-sm" onclick="genMonthlyRents()">⚡ Générer ${fmtM(tm)}</button>`:''}
+      <button class="btn btn-sm" onclick="openRentModal()">+ Manuel</button>
+    </div>
   </div>
-  <div class="kg kg3" style="margin-bottom:12px">
-    <div class="kc"><div class="ka" style="background:var(--green)"></div><div class="kl">Encaissé</div><div class="kv" style="color:var(--green)">${fmt(tPaid)}</div></div>
-    <div class="kc"><div class="ka" style="background:${unpaid?'var(--red)':'var(--green)'}"></div><div class="kl">Impayés</div><div class="kv" style="color:${unpaid?'var(--red)':'var(--green)'}">${unpaid}</div></div>
-    <div class="kc"><div class="ka" style="background:var(--gold)"></div><div class="kl">Enregistrés</div><div class="kv" style="color:var(--gold)">${p.rents.length}</div></div>
+
+  <div class="kg kg3" style="margin-bottom:14px">
+    <div class="kc"><div class="ka" style="background:var(--green)"></div><div class="kl">Encaissé total</div><div class="kv" style="color:var(--green)">${fmt(tPaid)}</div></div>
+    <div class="kc"><div class="ka" style="background:${tUnpaid?'var(--red)':'var(--green)'}"></div><div class="kl">Impayés ce mois</div><div class="kv" style="color:${tUnpaid?'var(--red)':'var(--green)'}">${tUnpaid}</div></div>
+    <div class="kc"><div class="ka" style="background:var(--gold)"></div><div class="kl">Attendu/mois</div><div class="kv" style="color:var(--gold)">${fmt(activeT.reduce((s,t)=>s+t.rent,0))}</div></div>
   </div>
-  ${rents.map(r=>{
+
+  ${activeT.length?`
+  <!-- Tableau du mois en cours par colocataire -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="sl" style="margin-bottom:10px">Ce mois · ${fmtM(tm)}</div>
+    ${activeT.map(t=>{
+      const r=p.rents.find(x=>x.tenantId===t.id&&x.month===tm);
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd2)">
+        <div style="display:flex;gap:10px;align-items:center">
+          <div style="width:36px;height:36px;border-radius:10px;background:${r?.paid?'var(--green2)':'var(--red2)'};border:1px solid ${r?.paid?'rgba(0,208,132,.3)':'rgba(255,77,109,.3)'};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:${r?.paid?'var(--green)':'var(--red)'}">${t.name[0].toUpperCase()}</div>
+          <div>
+            <div style="color:var(--t1);font-weight:700;font-size:13px">${t.name}</div>
+            <div style="color:var(--t4);font-size:11px">${r?fmtD(r.paidDate):'Pas encore généré'}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="text-align:right">
+            <div style="font-weight:700;color:${r?.paid?'var(--green)':'var(--t2)'}">${fmt(r?.amount||t.rent)}</div>
+            <div style="font-size:10px;color:${r?.paid?'var(--green)':'var(--red)'}">${r?.paid?'✓ Payé':'En attente'}</div>
+          </div>
+          ${r?`<button class="btn-g btn-xs" style="color:${r.paid?'var(--green)':'var(--t3)'}" onclick="toggleRent(${r.id})">${r.paid?'✓':'Payer'}</button>
+          <button class="btn-g btn-xs" onclick="genQuittanceDirect(${r.id})">📄</button>`
+          :`<button class="btn btn-xs" onclick="createRentForTenant(${t.id})">+ Créer</button>`}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`:''}
+
+  <!-- Historique complet -->
+  <div class="sl" style="margin-bottom:8px">Historique</div>
+  ${[...p.rents].sort((a,b)=>b.month.localeCompare(a.month)).map(r=>{
     const t=p.tenants.find(x=>x.id===r.tenantId);
-    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--bd2)">
-      <div style="display:flex;gap:9px;align-items:center">
-        <div style="width:36px;height:36px;border-radius:9px;background:${r.paid?'rgba(46,204,113,.15)':'rgba(231,76,60,.12)'};border:1px solid ${r.paid?'rgba(46,204,113,.35)':'rgba(231,76,60,.3)'};display:flex;align-items:center;justify-content:center;font-size:14px">${r.paid?'✓':'!'}</div>
+    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd2)">
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="width:32px;height:32px;border-radius:8px;background:${r.paid?'var(--green2)':'var(--red2)'};display:flex;align-items:center;justify-content:center;font-size:13px">${r.paid?'✓':'!'}</div>
         <div>
-          <div style="color:var(--t1);font-weight:600;font-size:13px">${fmtM(r.month)}</div>
-          <div style="color:var(--t4);font-size:11px">${t?t.name:'—'}${r.paidDate?' · '+fmtD(r.paidDate):''}</div>
+          <div style="color:var(--t1);font-size:12px;font-weight:600">${fmtM(r.month)} · ${t?.name||'—'}</div>
+          <div style="color:var(--t4);font-size:10px">${r.paidDate?'Payé le '+fmtD(r.paidDate):r.paid?'Payé':'Impayé'}</div>
         </div>
       </div>
-      <div style="display:flex;gap:7px;align-items:center">
-        <div style="color:${r.paid?'var(--green)':'var(--red)'};font-weight:700">${fmt(r.amount)}</div>
-        <button class="btn-g btn-xs" style="color:${r.paid?'var(--green)':'var(--t3)'}" onclick="toggleRent(${r.id})">${r.paid?'✓':'Payer'}</button>
+      <div style="display:flex;gap:5px;align-items:center">
+        <span style="color:${r.paid?'var(--green)':'var(--red)'};font-weight:700;font-size:13px">${fmt(r.amount)}</span>
+        <button class="btn-g btn-xs" onclick="toggleRent(${r.id})">${r.paid?'✓':'Payer'}</button>
         <button class="btn-g btn-xs" onclick="genQuittanceDirect(${r.id})">📄</button>
         <button class="btn-d btn-xs" onclick="delItem('rents',${r.id})">✕</button>
       </div>
     </div>`;}).join('')}
-  ${!rents.length?'<div class="empty">Aucun loyer enregistré</div>':''}`;
+  ${!p.rents.length?'<div class="empty">Aucun loyer — cliquez sur "Générer" pour ce mois</div>':''}`;
+}
+
+function genMonthlyRents(){
+  const p=P();if(!p)return;ensure(p);
+  const tm=thisMonth();
+  const activeT=p.tenants.filter(t=>t.status==='active');
+  let created=0;
+  activeT.forEach(t=>{
+    if(!p.rents.some(r=>r.tenantId===t.id&&r.month===tm)){
+      p.rents.push({id:Date.now()+Math.random(),month:tm,amount:t.rent,paid:false,paidDate:null,tenantId:t.id,notes:''});
+      created++;
+    }
+  });
+  if(created===0){toast('Loyers déjà générés pour ce mois','ok');return;}
+  addLog(`a généré ${created} loyer(s) pour ${fmtM(tm)}`);
+  renderTab('rents');scheduleSave();updateReminderBadge();
+  toast(`${created} loyer(s) généré(s) ✓`,'ok');
+}
+function createRentForTenant(tenantId){
+  const p=P();if(!p)return;ensure(p);
+  const t=p.tenants.find(x=>x.id===tenantId);if(!t)return;
+  const tm=thisMonth();
+  p.rents.push({id:Date.now(),month:tm,amount:t.rent,paid:false,paidDate:null,tenantId,notes:''});
+  addLog(`a créé loyer ${fmtM(tm)} pour ${t.name}`);
+  renderTab('rents');scheduleSave();updateReminderBadge();toast('Loyer créé ✓','ok');
 }
 function openRentModal(id){
   const p=P();if(!p)return;ensure(p);
   const r=id?p.rents.find(x=>x.id===id):null;
-  const actT=p.tenants.find(t=>t.status==='active');
-  const f=r?{...r}:{month:thisMonth(),amount:actT?.rent||0,paid:false,paidDate:'',tenantId:actT?.id||'',notes:''};
-  setMod('Loyer',`
+  const activeT=p.tenants.filter(t=>t.status==='active');
+  const f=r?{...r}:{month:thisMonth(),amount:activeT[0]?.rent||0,paid:false,paidDate:'',tenantId:activeT[0]?.id||'',notes:''};
+  setMod(id?'Modifier':'Nouveau loyer',`
     <div class="g2"><div class="field"><label>Mois</label><input class="inp" id="f-month" type="month" value="${f.month}"></div><div class="field"><label>Montant €</label><input class="inp" id="f-amt" type="number" value="${f.amount}"></div></div>
-    <div class="field"><label>Locataire</label><select class="inp" id="f-ten"><option value="">—</option>${p.tenants.map(t=>`<option value="${t.id}" ${f.tenantId===t.id?'selected':''}>${t.name}</option>`).join('')}</select></div>
+    <div class="field"><label>Locataire</label><select class="inp" id="f-ten"><option value="">—</option>${p.tenants.map(t=>`<option value="${t.id}" ${f.tenantId==t.id?'selected':''}>${t.name}</option>`).join('')}</select></div>
     <div class="g2"><div class="field"><label>Statut</label><select class="inp" id="f-paid"><option value="false" ${!f.paid?'selected':''}>Impayé</option><option value="true" ${f.paid?'selected':''}>Payé</option></select></div><div class="field"><label>Date paiement</label><input class="inp" id="f-pdate" type="date" value="${f.paidDate||''}"></div></div>
+    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:10px;padding:10px 13px;margin-top:6px">
+      <div style="color:var(--t4);font-size:11px;margin-bottom:5px;font-weight:600">📈 Révision IRL (optionnel)</div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <div class="field" style="flex:1;margin:0"><label>Loyer actuel €</label><input class="inp" id="f-irl-base" type="number" placeholder="${p.tenants.find(t=>t.id==f.tenantId)?.rent||''}"></div>
+        <div class="field" style="flex:1;margin:0"><label>% augmentation</label><input class="inp" id="f-irl-pct" type="number" step="0.1" placeholder="ex: 2.4"></div>
+        <button class="btn-g btn-sm" style="margin-top:16px;white-space:nowrap" onclick="applyIRL()">Calculer</button>
+      </div>
+      <div id="irl-result" style="color:var(--green);font-size:12px;margin-top:5px;font-weight:700"></div>
+    </div>
     <button class="btn btn-full" onclick="saveRent(${id||0})">Enregistrer</button>`);
   openMod();
+}
+function applyIRL(){
+  const base=parseFloat(document.getElementById('f-irl-base')?.value)||0;
+  const pct=parseFloat(document.getElementById('f-irl-pct')?.value)||0;
+  if(!base||!pct)return;
+  const newRent=Math.round(base*(1+pct/100)*100)/100;
+  const amt=document.getElementById('f-amt');if(amt)amt.value=newRent;
+  const res=document.getElementById('irl-result');if(res)res.textContent=`Nouveau loyer : ${fmt(newRent)} (+${fmt(newRent-base)})`;
 }
 function saveRent(id){
   const p=P();if(!p)return;ensure(p);
@@ -1626,8 +1953,9 @@ function toggleRent(id){
   const nowPaid=!r.paid;
   p.rents=p.rents.map(x=>x.id===id?{...x,paid:nowPaid,paidDate:nowPaid?today():null}:x);
   addLog(`a marqué loyer ${r.month} ${nowPaid?'payé':'impayé'}`);
-  renderTab('rents');scheduleSave();updateReminderBadge();toast(nowPaid?'Loyer marqué payé ✓':'Marqué impayé','ok');
+  renderTab('rents');scheduleSave();updateReminderBadge();toast(nowPaid?'✓ Payé':'Marqué impayé','ok');
 }
+
 // ══ CHARGES ══
 function rCharges(el){
   const p=P();if(!p)return;ensure(p);
@@ -1652,6 +1980,7 @@ function rCharges(el){
         <div style="display:flex;gap:7px;align-items:center">
           ${c.nextDate?`<span style="color:var(--t4);font-size:11px">📅 ${fmtD(c.nextDate)}</span>`:''}
           ${tag(c.paid?'Payée':'À payer',c.paid?'#2ecc71':'#e74c3c')}
+            ${c.recuperable?tag('Récup.','#00c9b1'):''}
         </div>
         <div style="display:flex;gap:5px">
           <button class="btn-g btn-xs" style="color:${c.paid?'var(--green)':'var(--t3)'}" onclick="toggleCharge(${c.id})">${c.paid?'✓ Payée':'Payer'}</button>
@@ -1666,26 +1995,40 @@ function rCharges(el){
 function openChargeModal(id){
   const p=P();if(!p)return;ensure(p);
   const c=id?p.charges.find(x=>x.id===id):null;
-  const f=c?{...c}:{name:'',category:'Assurance PNO',amount:0,frequency:'annual',nextDate:'',paid:false,notes:''};
+  const f=c?{...c}:{name:'',category:'Assurance PNO',amount:0,frequency:'annual',nextDate:'',paid:false,notes:'',recuperable:false};
   setMod(id?'Modifier':'Nouvelle charge',`
     <div class="g2"><div class="field"><label>Nom</label><input class="inp" id="f-name" value="${f.name}" placeholder="Taxe foncière"></div><div class="field"><label>Catégorie</label><select class="inp" id="f-cat">${CHARGE_CATS.map(cat=>`<option value="${cat}" ${f.category===cat?'selected':''}>${cat}</option>`).join('')}</select></div></div>
     <div class="g2"><div class="field"><label>Montant €</label><input class="inp" id="f-amt" type="number" value="${f.amount}"></div><div class="field"><label>Fréquence</label><select class="inp" id="f-freq">${Object.entries(CHARGE_FREQ).map(([k,v])=>`<option value="${k}" ${f.frequency===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
     <div class="g2"><div class="field"><label>Prochaine échéance</label><input class="inp" id="f-date" type="date" value="${f.nextDate||''}"></div><div class="field"><label>Statut</label><select class="inp" id="f-paid"><option value="false" ${!f.paid?'selected':''}>À payer</option><option value="true" ${f.paid?'selected':''}>Payée</option></select></div></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg3);border-radius:10px;margin-bottom:13px">
+      <input type="checkbox" id="f-recup" ${f.recuperable?'checked':''} style="width:16px;height:16px;accent-color:var(--teal);cursor:pointer">
+      <label for="f-recup" style="color:var(--t2);font-size:13px;cursor:pointer">💧 Charge récupérable sur le locataire</label>
+    </div>
     <button class="btn btn-full" onclick="saveCharge(${id||0})">Enregistrer</button>`);
   openMod();
 }
 function saveCharge(id){
   const p=P();if(!p)return;ensure(p);
-  const item={name:document.getElementById('f-name').value.trim(),category:document.getElementById('f-cat').value,amount:parseFloat(document.getElementById('f-amt').value)||0,frequency:document.getElementById('f-freq').value,nextDate:document.getElementById('f-date').value||null,paid:document.getElementById('f-paid').value==='true'};
+  const item={name:document.getElementById('f-name').value.trim(),category:document.getElementById('f-cat').value,amount:parseFloat(document.getElementById('f-amt').value)||0,frequency:document.getElementById('f-freq').value,nextDate:document.getElementById('f-date').value||null,paid:document.getElementById('f-paid').value==='true',recuperable:document.getElementById('f-recup')?.checked||false};
   if(!item.name){alert('Nom requis.');return;}
   if(id){p.charges=p.charges.map(c=>c.id===id?{...item,id}:c);}
   else{p.charges.push({...item,id:Date.now()});addLog(`a ajouté charge "${item.name}"`);}
   closeMod();renderTab('charges');scheduleSave();updateReminderBadge();toast('Charge enregistrée ✓','ok');
 }
 function toggleCharge(id){
-  const p=P();if(!p)return;
-  p.charges=p.charges.map(x=>x.id===id?{...x,paid:!x.paid}:x);
-  renderTab('charges');scheduleSave();toast('Statut mis à jour ✓','ok');
+  const p=P();if(!p)return;ensure(p);
+  p.charges=p.charges.map(x=>{
+    if(x.id!==id)return x;
+    const nowPaid=!x.paid;
+    let next=x.nextDate;
+    // Si on marque payée et charge récurrente → calculer prochaine échéance
+    if(nowPaid&&x.frequency&&x.frequency!=='once'&&x.nextDate){
+      next=nextRecurDate(x.nextDate,x.frequency);
+    }
+    return{...x,paid:nowPaid,lastPaid:nowPaid?today():x.lastPaid,nextDate:nowPaid&&x.frequency!=='once'?next:x.nextDate};
+  });
+  addLog(`a marqué charge payée`);
+  renderTab('charges');scheduleSave();updateReminderBadge();toast('Charge mise à jour ✓','ok');
 }
 
 // ══ EXPENSES ══
@@ -1699,6 +2042,7 @@ function rExpenses(el){
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <h3 class="section-h" style="margin:0">Dépenses</h3>
     <div style="display:flex;gap:6px">
+      <button class="btn-g btn-sm" onclick="exportExpensesPDF()">📄</button>
       <button class="btn-scan btn-sm" onclick="openScanner('expense')">📷 Scanner</button>
       <button class="btn btn-sm" onclick="openExpenseModal()">+ Manuel</button>
     </div>
@@ -1751,6 +2095,7 @@ function renderExpList(list){
       <div style="text-align:right;flex-shrink:0">
         <div style="color:var(--t1);font-weight:700;font-size:14px">${fmt(e.amount)}</div>
         <div style="display:flex;gap:4px;margin-top:3px;justify-content:flex-end">
+          ${e.recurring&&e.nextDate?`<button class="btn-g btn-xs" style="color:var(--purple)" onclick="doneRecurExp(${e.id})" title="Renouveler">🔄</button>`:''}
           <button class="btn-g btn-xs" onclick="openExpenseModal(${e.id})">✎</button>
           <button class="btn-d btn-xs" onclick="delItem('expenses',${e.id})">✕</button>
         </div>
@@ -1774,7 +2119,10 @@ function openExpenseModal(id=null,photo=null){
       <div class="field"><label>Montant €</label><input class="inp" id="f-amt" type="number" step="0.01" value="${f.amount}" placeholder="0.00"></div>
       <div class="field"><label>Date</label><input class="inp" id="f-date" type="date" value="${f.date}"></div>
     </div>
-    <div class="field"><label>Catégorie</label><select class="inp" id="f-cat">${EXP_CATS.map(c=>`<option value="${c}" ${f.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="g2">
+      <div class="field"><label>Catégorie</label><select class="inp" id="f-cat">${EXP_CATS.map(c=>`<option value="${c}" ${f.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="field"><label>Phase associée</label><select class="inp" id="f-phase"><option value="">— Aucune —</option>${(P()?.phases||[]).map(ph=>`<option value="${ph.id}" ${f.phaseId==ph.id?'selected':''}>${ph.name}</option>`).join('')}</select></div>
+    </div>
     <div class="field">
       <label>Payé par</label>
       <div class="payer-opts" id="payer-opts">${renderPayerOpts(f.paidBy)}</div>
@@ -1815,10 +2163,37 @@ function saveExpense(id){
   if(!label){alert('Le libellé est requis.');return;}
   if(!amount){alert('Le montant est requis.');return;}
   const rec=document.getElementById('f-rec').checked;
-  const item={label,amount,date:document.getElementById('f-date').value,category:document.getElementById('f-cat').value,paidBy:document.getElementById('f-payer').value||'moi',notes:document.getElementById('f-notes').value.trim(),photo:document.getElementById('f-photo').value||null,recurring:rec,recurringFreq:rec?document.getElementById('f-rfreq')?.value:'',nextDate:rec?document.getElementById('f-ndate')?.value:''};
+  const photoVal=document.getElementById('f-photo').value||null;
+  const phaseIdVal=parseInt(document.getElementById('f-phase')?.value)||null;
+  const item={label,amount,date:document.getElementById('f-date').value,category:document.getElementById('f-cat').value,paidBy:document.getElementById('f-payer').value||'moi',notes:document.getElementById('f-notes').value.trim(),photo:photoVal,phaseId:phaseIdVal,recurring:rec,recurringFreq:rec?document.getElementById('f-rfreq')?.value:'',nextDate:rec?document.getElementById('f-ndate')?.value:''};
+  closeMod();
+  // Upload photo en arrière-plan si c'est un base64
+  if(photoVal&&photoVal.startsWith('data:')){
+    uploadingToast(true);
+    uploadPhoto(photoVal, photoPath('expenses', id||Date.now())).then(url=>{
+      uploadingToast(false);
+      if(id){p.expenses=p.expenses.map(e=>e.id===id?{...e,photo:url}:e);}
+      else{const last=p.expenses[p.expenses.length-1];if(last)last.photo=url;}
+      scheduleSave();
+    });
+  }
   if(id){p.expenses=p.expenses.map(e=>e.id===id?{...item,id}:e);addLog(`a modifié "${item.label}"`);}
   else{p.expenses.push({...item,id:Date.now()});addLog(`a ajouté dépense "${item.label}" ${fmt(item.amount)} (${PAYER_LB[item.paidBy]})`);}
-  closeMod();renderTab('expenses');scheduleSave();updateReminderBadge();toast(`Dépense enregistrée ✓`,'ok');
+  renderTab('expenses');scheduleSave();updateReminderBadge();toast(`Dépense enregistrée ✓`,'ok');
+}
+
+// Marquer une dépense récurrente comme faite → générer la prochaine occurrence
+function doneRecurExp(id){
+  const p=P();if(!p)return;ensure(p);
+  const e=p.expenses.find(x=>x.id===id);if(!e||!e.recurring)return;
+  const nextDate=nextRecurDate(e.nextDate,e.recurringFreq);
+  // Créer nouvelle occurrence
+  p.expenses.push({...e,id:Date.now(),date:e.nextDate,nextDate,paid:false});
+  // Mettre à jour l'actuelle
+  p.expenses=p.expenses.map(x=>x.id===id?{...x,nextDate}:x);
+  addLog(`a renouvelé dépense récurrente "${e.label}"`);
+  renderTab('expenses');scheduleSave();updateReminderBadge();
+  toast(`Prochaine échéance : ${fmtD(nextDate)} ✓`,'ok');
 }
 
 // ══ ÉTAT DES LIEUX ══
@@ -2072,15 +2447,17 @@ function addEDLPhoto(edlId,idx){
   inp.onchange=ev=>{
     const file=ev.target.files[0];if(!file)return;
     const reader=new FileReader();
-    reader.onload=re=>{
-      resizeImg(re.target.result,1200,0.9,photo=>{
+    reader.onload=async re=>{
+      resizeImg(re.target.result,1200,0.9,async photo=>{
         const p=P();if(!p)return;
         const e=p.edls.find(x=>x.id===edlId);if(!e||!e.items[idx])return;
         if(!e.items[idx].photos)e.items[idx].photos=[];
         if(e.items[idx].photos.length>=3){toast('Max 3 photos par objet','err');return;}
-        e.items[idx].photos.push(photo);
+        uploadingToast(true);
+        const url=await uploadPhoto(photo, photoPath('edl/'+edlId+'/item'+idx,'photo'));
+        uploadingToast(false);
+        e.items[idx].photos.push(url);
         scheduleSave();
-        // Refresh the modal
         openEDLFill(edlId);
       });
     };
@@ -2527,10 +2904,16 @@ function openInvPhoto(){
     const file=e.target.files[0];if(!file)return;
     const reader=new FileReader();
     reader.onload=ev=>{
-      resizeImg(ev.target.result,600,0.82,photo=>{
+      resizeImg(ev.target.result,600,0.82,async photo=>{
+        // Mettre la preview en base64 d'abord
         const ph=document.getElementById('f-photo');if(ph)ph.value=photo;
         const prev=document.querySelector('#mbox img');
-        if(prev){prev.src=photo;}
+        if(prev)prev.src=photo;
+        // Upload en arrière-plan et mettre à jour le champ caché
+        uploadingToast(true);
+        const url=await uploadPhoto(photo, photoPath('inventory','item'));
+        uploadingToast(false);
+        const ph2=document.getElementById('f-photo');if(ph2)ph2.value=url;
       });
     };
     reader.readAsDataURL(file);
@@ -2543,6 +2926,166 @@ function saveInv(id){
   if(id){p.inventory=p.inventory.map(x=>x.id===id?{...item,id}:x);}
   else{p.inventory.push({...item,id:Date.now()});addLog(`a ajouté "${item.name}" à l'inventaire`);}
   closeMod();renderTab('inventory');scheduleSave();toast('Article enregistré ✓','ok');
+}
+
+// ══ NOTES ══
+function rNotes(el){
+  const p=P();if(!p)return;ensure(p);
+  if(!p.notes)p.notes='';
+  el.innerHTML=`
+  <h3 class="section-h">Notes & Informations</h3>
+  <div class="card" style="margin-bottom:12px">
+    <div class="sl" style="margin-bottom:9px">Notes libres</div>
+    <textarea class="notes-area" id="notes-ta" placeholder="Code d'entrée, contact syndic, remarques importantes, infos pratiques..."
+      oninput="saveNotes(this.value)" onblur="saveNotes(this.value)">${p.notes||''}</textarea>
+    <div style="color:var(--t4);font-size:11px;margin-top:6px">✓ Sauvegarde automatique</div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="sl" style="margin-bottom:9px">Informations rapides</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${[['Code entrée',p.info.codeEntree||'—'],['Contact syndic',p.info.contactSyndic||'—'],['Référence cadastre',p.info.refCadastre||'—'],['Année construction',p.info.anneeConst||'—']].map(([l,v])=>`
+        <div style="background:var(--bg3);border-radius:10px;padding:11px 13px">
+          <div style="color:var(--t4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${l}</div>
+          <div style="color:var(--t1);font-size:13px;font-weight:600">${v}</div>
+        </div>`).join('')}
+    </div>
+    <button class="btn-g" style="width:100%;margin-top:10px;padding:10px" onclick="openInfoModal()">✎ Modifier les infos</button>
+  </div>`;
+}
+function saveNotes(val){
+  const p=P();if(!p)return;
+  p.notes=val;scheduleSave();
+}
+function openInfoModal(){
+  const p=P();if(!p)return;
+  const f=p.info;
+  setMod('Informations pratiques',`
+    <div class="g2">
+      <div class="field"><label>Code d'entrée</label><input class="inp" id="f-code" value="${f.codeEntree||''}" placeholder="A1234"></div>
+      <div class="field"><label>Contact syndic</label><input class="inp" id="f-syndic" value="${f.contactSyndic||''}" placeholder="Nom ou tél."></div>
+    </div>
+    <div class="g2">
+      <div class="field"><label>Réf. cadastre</label><input class="inp" id="f-cadastre" value="${f.refCadastre||''}" ></div>
+      <div class="field"><label>Année construction</label><input class="inp" id="f-annee" type="number" value="${f.anneeConst||''}"></div>
+    </div>
+    <button class="btn btn-full" onclick="saveInfoModal()">Enregistrer</button>`);
+  openMod();
+}
+function saveInfoModal(){
+  const p=P();if(!p)return;
+  p.info.codeEntree=document.getElementById('f-code').value.trim();
+  p.info.contactSyndic=document.getElementById('f-syndic').value.trim();
+  p.info.refCadastre=document.getElementById('f-cadastre').value.trim();
+  p.info.anneeConst=document.getElementById('f-annee').value;
+  closeMod();renderTab('notes');scheduleSave();toast('Informations enregistrées ✓','ok');
+}
+
+// ══ GALERIE PHOTOS ══
+function rGallery(el){
+  const p=P();if(!p)return;ensure(p);
+  const photos=[];
+
+  // Photos phases de travaux
+  (p.phases||[]).forEach(ph=>{
+    (ph.photos||[]).forEach(src=>photos.push({src,cat:'Travaux',label:ph.name,date:ph.endDate||ph.startDate||'',color:'var(--blue)'}));
+  });
+  // Photos dépenses
+  (p.expenses||[]).filter(e=>e.photo&&!e.photo.startsWith('data:')||e.photo?.startsWith('http')).forEach(e=>{
+    if(e.photo)photos.push({src:e.photo,cat:'Dépense',label:e.label,date:e.date,color:'var(--orange)'});
+  });
+  // Photos EDL
+  (p.edls||[]).forEach(edl=>{
+    (edl.items||[]).forEach(it=>{
+      (it.photos||[]).forEach(src=>photos.push({src,cat:'EDL',label:it.name+' · '+edl.tenantName,date:edl.date,color:'var(--purple)'}));
+    });
+  });
+  // Photos inventaire
+  (p.inventory||[]).filter(it=>it.photo).forEach(it=>{
+    photos.push({src:it.photo,cat:'Mobilier',label:it.name,date:'',color:'var(--teal)'});
+  });
+  // Photos locataires docs
+  (p.tenants||[]).forEach(t=>{
+    (t.docs||[]).forEach(d=>{
+      if(d.photo)photos.push({src:d.photo,cat:'Dossier',label:d.label+' · '+t.name,date:d.date,color:'var(--gold)'});
+    });
+  });
+
+  // Filtres catégories
+  const cats=[...new Set(photos.map(ph=>ph.cat))];
+  const filter=window._galleryFilter||'all';
+
+  const filtered=filter==='all'?photos:photos.filter(ph=>ph.cat===filter);
+
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 class="section-h" style="margin:0">Galerie photos</h3>
+    <span style="color:var(--t4);font-size:12px">${filtered.length} photo${filtered.length>1?'s':''}</span>
+  </div>
+
+  <!-- Filtres -->
+  <div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px;scrollbar-width:none">
+    <button onclick="window._galleryFilter='all';rGallery(document.getElementById('tab-ct'))" class="stb ${filter==='all'?'on':''}">Tout (${photos.length})</button>
+    ${cats.map(c=>{
+      const n=photos.filter(ph=>ph.cat===c).length;
+      const col=photos.find(ph=>ph.cat===c)?.color||'var(--t4)';
+      return`<button onclick="window._galleryFilter='${c}';rGallery(document.getElementById('tab-ct'))" class="stb ${filter===c?'on':''}" style="${filter===c?'border-color:'+col+';background:'+col+'22;color:'+col:''}">${c} (${n})</button>`;
+    }).join('')}
+  </div>
+
+  ${filtered.length?`
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+    ${filtered.map((ph,i)=>`
+      <div style="position:relative;cursor:pointer" onclick="viewPhoto('${ph.src}')">
+        <div style="aspect-ratio:1;border-radius:12px;overflow:hidden;border:1px solid var(--bd)">
+          <img src="${ph.src}" style="width:100%;height:100%;object-fit:cover">
+        </div>
+        <div style="position:absolute;top:5px;left:5px">
+          <span style="font-size:8px;font-weight:800;padding:2px 6px;border-radius:99px;background:${ph.color};color:#fff;text-transform:uppercase;letter-spacing:.05em">${ph.cat}</span>
+        </div>
+        <div style="margin-top:5px">
+          <div style="color:var(--t2);font-size:10px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ph.label}</div>
+          ${ph.date?`<div style="color:var(--t4);font-size:9px">${fmtD(ph.date)}</div>`:''}
+        </div>
+      </div>`).join('')}
+  </div>`:`<div class="empty">Aucune photo dans ce bien</div>`}`;
+}
+
+// ══ DOSSIERS LOCATAIRES ══
+function rDocsLocataires(el){
+  const p=P();if(!p)return;ensure(p);
+  el.innerHTML=`
+  <h3 class="section-h">Dossiers locataires</h3>
+  ${p.tenants.length?p.tenants.map(t=>`
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+        <div style="display:flex;gap:10px;align-items:center">
+          <div style="width:38px;height:38px;border-radius:10px;background:var(--gold3);border:1px solid rgba(212,168,83,.25);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--gold)">${t.name[0].toUpperCase()}</div>
+          <div>
+            <div style="color:var(--t1);font-weight:700">${t.name}</div>
+            <div style="color:var(--t4);font-size:11px">${(t.docs||[]).length} document${(t.docs||[]).length>1?'s':''}</div>
+          </div>
+        </div>
+        <button class="btn-scan btn-sm" onclick="scanTenantId=${t.id};openScanner('tenant-doc')">📷 Ajouter</button>
+      </div>
+      ${(t.docs||[]).length?`
+        <div class="doc-grid">
+          ${(t.docs||[]).map((d,i)=>`
+            <div style="position:relative;cursor:pointer" onclick="viewDocModal(${t.id},${i})">
+              <img class="doc-thumb" src="${d.photo}">
+              <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent);padding:5px 6px;border-radius:0 0 10px 10px">
+                <div style="color:#fff;font-size:9px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.label}</div>
+              </div>
+            </div>`).join('')}
+          <div class="doc-add" onclick="scanTenantId=${t.id};openScanner('tenant-doc')">
+            <span style="font-size:20px">📄</span>
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t4)">Ajouter</div>
+          </div>
+        </div>`:`
+        <div onclick="scanTenantId=${t.id};openScanner('tenant-doc')" style="border:2px dashed var(--bd);border-radius:12px;padding:18px;text-align:center;cursor:pointer">
+          <div style="font-size:28px;margin-bottom:6px">📁</div>
+          <div style="color:var(--t4);font-size:12px">Scanner les documents du dossier</div>
+        </div>`}
+    </div>`).join(''):`<div class="empty">Aucun locataire enregistré</div>`}`;
 }
 
 // ══ BUDGET ══
@@ -2592,7 +3135,7 @@ function rBudget(el){
       </div>`).join('')}
   </div>
 
-  <div class="card" style="padding:0;overflow:hidden">
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px">
     <div style="background:var(--bg3);padding:9px 14px;border-bottom:1px solid var(--bd)"><div class="sl" style="margin:0">Récapitulatif investissement</div></div>
     ${[["Prix d'acquisition",info.purchasePrice,'var(--gold)'],['Budget travaux',pB,'var(--blue)'],['Dépensé travaux',pS,'var(--green)'],['Artisans (devis)',qT,'var(--orange)'],['Artisans (factures)',iT,'#e67e22'],['Charges annuelles',chAnn,'var(--red)'],['Dépenses diverses',tExp,'var(--orange)']].map(([l,v,a])=>`
       <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--bd2)">
@@ -2603,7 +3146,29 @@ function rBudget(el){
       <span style="color:var(--t1);font-weight:700">TOTAL INVESTI</span>
       <span style="color:var(--gold);font-weight:700;font-size:16px">${fmt(grand+tExp)}</span>
     </div>
-  </div>`;
+  </div>
+
+  ${phases.length?`<div class="card" style="margin-bottom:12px">
+    <div class="sl" style="margin-bottom:10px">Dépenses par phase de travaux</div>
+    ${phases.map(ph=>{
+      const phExp=expenses.filter(e=>e.phaseId===ph.id);
+      const phTotal=phExp.reduce((s,e)=>s+e.amount,0);
+      return`<div style="padding:9px 0;border-bottom:1px solid var(--bd2)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <div style="color:var(--t1);font-size:13px;font-weight:600">${ph.name}</div>
+          <div style="display:flex;gap:8px">
+            <span style="color:var(--t4);font-size:11px">Budget : ${fmt(ph.budget)}</span>
+            <span style="color:${phTotal>ph.budget?'var(--red)':'var(--green)'};font-weight:700">${fmt(phTotal)}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="flex:1;height:4px;background:var(--bg3);border-radius:99px;overflow:hidden">
+            <div style="height:100%;width:${Math.min(100,ph.budget>0?phTotal/ph.budget*100:0)}%;background:${phTotal>ph.budget?'var(--red)':'var(--gold)'};border-radius:99px"></div>
+          </div>
+          <span style="color:var(--t4);font-size:10px">${ph.budget>0?Math.round(phTotal/ph.budget*100):0}%</span>
+        </div>
+      </div>`;}).join('')}
+  </div>`:''}`;
 }
 
 // ══ QUITTANCES ══
@@ -2620,13 +3185,29 @@ function genQuittanceDirect(rentId){
   const t=p.tenants.find(x=>x.id===r.tenantId);if(!t)return;
   showQuittanceModal(t,r,p);
 }
+function getQuittanceNum(p,tenantId,month){
+  // Numérotation auto : AAAA-MM-XXX (ordre chronologique par locataire)
+  if(!p.quittanceCounter)p.quittanceCounter={};
+  const key=tenantId+'_'+month;
+  if(!p.quittanceCounter[key]){
+    const count=Object.keys(p.quittanceCounter).filter(k=>k.startsWith(tenantId+'_')).length+1;
+    p.quittanceCounter[key]=String(count).padStart(3,'0');
+  }
+  const year=month?.slice(0,4)||new Date().getFullYear();
+  const mon=month?.slice(5,7)||String(new Date().getMonth()+1).padStart(2,'0');
+  return `QUIT-${year}${mon}-${p.quittanceCounter[key]}`;
+}
+
 function showQuittanceModal(t,rent,p){
   const qDate=new Date().toLocaleDateString('fr-FR');
   const mois=fmtM(rent.month);
+  const quittNum=getQuittanceNum(p,t.id,rent.month);
+  scheduleSave(); // sauvegarder le compteur
   const html=`
     <div class="quit-prev" id="quit-content">
       <div style="text-align:center;margin-bottom:18px">
         <h2 style="font-size:20px;font-weight:700;color:#1a1d27;letter-spacing:.05em">QUITTANCE DE LOYER</h2>
+        <div style="color:#999;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">N° ${quittNum}</div>
         <div style="color:#666;font-size:13px">Établie le ${qDate}</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -2649,7 +3230,8 @@ function showQuittanceModal(t,rent,p){
       <div style="border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;margin-bottom:14px">
         <div class="quit-line" style="padding:9px 12px;background:#f8f9fa;font-weight:700;font-size:13px;color:#1a1d27"><span>Désignation</span><span>Montant</span></div>
         <div class="quit-line" style="padding:9px 12px"><span style="color:#333">Loyer nu — ${mois}</span><span style="font-weight:700;color:#1a1d27">${fmt(rent.amount)}</span></div>
-        <div class="quit-line" style="padding:9px 12px;background:#f0faf4"><span style="font-weight:700;color:#1a1d27">TOTAL REÇU</span><span style="font-weight:700;font-size:16px;color:#27ae60">${fmt(rent.amount)}</span></div>
+        ${(()=>{const recup=p.charges.filter(c=>c.recuperable);if(!recup.length)return'';const total=recup.reduce((s,c)=>{const m={monthly:1,quarterly:1/3,annual:1/12,once:0};return s+c.amount*(m[c.frequency]||0);},0);return recup.map(c=>`<div class="quit-line" style="padding:7px 12px"><span style="color:#555;font-size:12px">↳ ${c.name}</span><span style="color:#555">${fmt(Math.round(c.amount*({monthly:1,quarterly:1/3,annual:1/12,once:0}[c.frequency]||0)*100)/100)}</span></div>`).join('')+'<div class="quit-line" style="padding:7px 12px;background:#f0f5ff"><span style="color:#555;font-size:12px">Provisions charges</span><span style="font-weight:700;color:#555">${fmt(Math.round(total*100)/100)}</span></div>';})()}
+        <div class="quit-line" style="padding:9px 12px;background:#f0faf4"><span style="font-weight:700;color:#1a1d27">TOTAL REÇU</span><span style="font-weight:700;font-size:16px;color:#27ae60">${fmt(rent.amount+(()=>{const recup=p.charges.filter(c=>c.recuperable);return recup.reduce((s,c)=>{const m={monthly:1,quarterly:1/3,annual:1/12,once:0};return s+c.amount*(m[c.frequency]||0);},0);})())}</span></div>
       </div>
       <p style="color:#444;font-size:12px;line-height:1.6;margin-bottom:12px">Le soussigné <strong>${SES?.username||'le bailleur'}</strong>, bailleur du logement désigné ci-dessus, déclare avoir reçu de <strong>${t.name}</strong>, locataire, la somme de <strong>${fmt(rent.amount)}</strong> au titre du loyer du mois de <strong>${mois}</strong>.</p>
       <div style="display:flex;justify-content:space-between;margin-top:18px;padding-top:14px;border-top:1px solid #e0e0e0">
@@ -2681,15 +3263,18 @@ function shareQuittance(name,mois,montant){
 
 // ══ SIMULATEUR D'ACHAT ══
 function openSimulateur(){
+  // Pré-remplir avec les données du bien courant si disponible
+  const p=P();
+  const prefill=p?{price:p.info.purchasePrice,loyer:p.info.targetRent,surface:p.info.surface}:{};
   setMod('🧮 Simulateur de rentabilité',`
-    <div style="color:var(--t4);font-size:12px;margin-bottom:14px">Calculez la rentabilité avant d'acheter un bien</div>
+    <div style="color:var(--t4);font-size:12px;margin-bottom:14px">Calculez la rentabilité ${p?'— pré-rempli avec '+p.info.name:'avant d'acheter un bien'}</div>
     <div class="g2">
-      <div class="field"><label>Prix d'achat €</label><input class="inp" id="s-price" type="number" placeholder="250000" oninput="runSim()"></div>
+      <div class="field"><label>Prix d'achat €</label><input class="inp" id="s-price" type="number" placeholder="250000" value="${prefill.price||''}" oninput="runSim()"></div>
       <div class="field"><label>Frais notaire €</label><input class="inp" id="s-notaire" type="number" placeholder="20000" oninput="runSim()"></div>
     </div>
     <div class="g2">
       <div class="field"><label>Budget travaux €</label><input class="inp" id="s-trav" type="number" placeholder="30000" oninput="runSim()"></div>
-      <div class="field"><label>Loyer mensuel €</label><input class="inp" id="s-loyer" type="number" placeholder="1200" oninput="runSim()"></div>
+      <div class="field"><label>Loyer mensuel €</label><input class="inp" id="s-loyer" type="number" placeholder="1200" value="${prefill.loyer||''}" oninput="runSim()"></div>
     </div>
     <div class="g2">
       <div class="field"><label>Charges annuelles €</label><input class="inp" id="s-charges" type="number" placeholder="2400" oninput="runSim()"></div>
@@ -2764,6 +3349,92 @@ function runSim(){
 }
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 initTheme();
+
+// ══ EXPORTS PDF ══
+function exportExpensesPDF(){
+  const p=P();if(!p)return;ensure(p);
+  const exps=[...p.expenses].sort((a,b)=>b.date.localeCompare(a.date));
+  const total=exps.reduce((s,e)=>s+e.amount,0);
+  const byP={moi:0,associe:0,commun:0};exps.forEach(e=>{if(byP[e.paidBy]!==undefined)byP[e.paidBy]+=e.amount;});
+  const rows=exps.map((e,i)=>`
+    <tr style="background:${i%2?'#fafafa':'#fff'}">
+      <td>${fmtD(e.date)}</td>
+      <td style="font-weight:600">${e.label}</td>
+      <td>${e.category||'—'}</td>
+      <td>${PAYER_LB[e.paidBy]||e.paidBy}</td>
+      <td style="text-align:right;font-weight:700">${fmt(e.amount)}</td>
+    </tr>`).join('');
+  const html=`
+    <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:24px;color:#1a1a2e">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #1a1a2e">
+        <div><h1 style="font-size:22px;font-weight:900;margin-bottom:4px">Relevé des dépenses</h1>
+        <div style="color:#666;font-size:13px">${p.info.name} · ${p.info.address}</div>
+        <div style="color:#999;font-size:12px">Édité le ${new Date().toLocaleDateString('fr-FR')}</div></div>
+        <div style="text-align:right"><div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.08em">Total</div><div style="font-size:28px;font-weight:900;color:#d4a853">${fmt(total)}</div></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px">
+        <thead><tr style="background:#1a1a2e;color:#fff">
+          <th style="padding:9px 12px;text-align:left">Date</th>
+          <th style="padding:9px 12px;text-align:left">Libellé</th>
+          <th style="padding:9px 12px;text-align:left">Catégorie</th>
+          <th style="padding:9px 12px;text-align:left">Payé par</th>
+          <th style="padding:9px 12px;text-align:right">Montant</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="background:#f0f0f0;font-weight:800">
+          <td colspan="4" style="padding:10px 12px">TOTAL</td>
+          <td style="padding:10px 12px;text-align:right;color:#d4a853;font-size:14px">${fmt(total)}</td>
+        </tr></tfoot>
+      </table>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        ${Object.entries(byP).map(([k,v])=>`<div style="background:#f8f8f8;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px">${PAYER_LB[k]}</div><div style="font-size:18px;font-weight:900;color:#1a1a2e">${fmt(v)}</div></div>`).join('')}
+      </div>
+    </div>`;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dépenses ${p.info.name}</title><style>@media print{body{margin:0}}</style></head><body>${html}<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+
+function exportRentsPDF(){
+  const p=P();if(!p)return;ensure(p);
+  const rents=[...p.rents].sort((a,b)=>b.month.localeCompare(a.month));
+  const tPaid=rents.filter(r=>r.paid).reduce((s,r)=>s+r.amount,0);
+  const rows=rents.map((r,i)=>{
+    const t=p.tenants.find(x=>x.id===r.tenantId);
+    return`<tr style="background:${i%2?'#fafafa':'#fff'}">
+      <td>${fmtM(r.month)}</td>
+      <td style="font-weight:600">${t?.name||'—'}</td>
+      <td><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:${r.paid?'#e8f8f1':'#fff0f3'};color:${r.paid?'#0a7c4a':'#c0392b'}">${r.paid?'✓ Payé':'Impayé'}</span></td>
+      <td>${r.paidDate?fmtD(r.paidDate):'—'}</td>
+      <td style="text-align:right;font-weight:700">${fmt(r.amount)}</td>
+    </tr>`;}).join('');
+  const html=`
+    <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:24px;color:#1a1a2e">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #1a1a2e">
+        <div><h1 style="font-size:22px;font-weight:900;margin-bottom:4px">Suivi des loyers</h1>
+        <div style="color:#666;font-size:13px">${p.info.name} · ${p.info.address}</div>
+        <div style="color:#999;font-size:12px">Édité le ${new Date().toLocaleDateString('fr-FR')}</div></div>
+        <div style="text-align:right"><div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.08em">Encaissé</div><div style="font-size:28px;font-weight:900;color:#27ae60">${fmt(tPaid)}</div></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#1a1a2e;color:#fff">
+          <th style="padding:9px 12px;text-align:left">Mois</th>
+          <th style="padding:9px 12px;text-align:left">Locataire</th>
+          <th style="padding:9px 12px;text-align:left">Statut</th>
+          <th style="padding:9px 12px;text-align:left">Date paiement</th>
+          <th style="padding:9px 12px;text-align:right">Montant</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="background:#f0f0f0;font-weight:800">
+          <td colspan="4" style="padding:10px 12px">TOTAL ENCAISSÉ</td>
+          <td style="padding:10px 12px;text-align:right;color:#27ae60;font-size:14px">${fmt(tPaid)}</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Loyers ${p.info.name}</title><style>@media print{body{margin:0}}</style></head><body>${html}<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
+}
 
 // ══ AUTO-LOGIN (persistance session) ══
 (async()=>{
