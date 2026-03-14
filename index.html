@@ -647,6 +647,7 @@ select option{background:var(--bg2)}
       <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">🌙</button>
       <button class="btn-g btn-sm" style="position:relative;padding:7px 10px" onclick="showReminders()">🔔<span class="badge" id="notif-count" style="display:none">0</span></button>
       <button class="btn-scan btn-sm" onclick="openSimulateur()">🧮</button>
+      <button class="btn-g btn-xs" onclick="openApiSettings()" style="padding:7px 10px;font-size:13px" title="Paramètres IA">🤖</button>
       <button class="btn-g btn-xs" onclick="logout()" style="padding:7px 10px;font-size:11px;font-weight:600">Quitter</button>
     </div>
   </div>
@@ -711,6 +712,9 @@ select option{background:var(--bg2)}
     </button>
     <button class="bnav" onclick="goTab('docs')" data-tab="docs">
       <span class="bnav-ic">📋</span><span class="bnav-lb">Docs</span>
+    </button>
+    <button class="bnav" onclick="goTab('ia')" data-tab="ia">
+      <span class="bnav-ic">🤖</span><span class="bnav-lb">IA</span>
     </button>
   </nav>
 </div>
@@ -797,6 +801,7 @@ const INV_ETAT=['Neuf','Très bon','Bon','Usure normale','Dégradé','Mauvais'];
 // ══ STATE ══
 let STATE={properties:{},partners:[]};
 let SES=null,curId=null,curTab='dashboard';
+let ANTHROPIC_KEY=''; // Clé API Anthropic pour l'OCR et l'IA
 let saveTimer=null,lastSaved=null,fbUnsub=null,presIv=null,onIv=null,isDark=true;
 let scanMode='expense',scanTenantId=null,scanPhaseId=null,scanEDLId=null,scanRoomIdx=null;
 let scannerStream=null;
@@ -839,6 +844,40 @@ function toggleTheme(){
 }
 function initTheme(){
   try{const t=localStorage.getItem('ir-theme');if(t==='light'){isDark=false;document.body.classList.add('light');document.getElementById('theme-btn').textContent='☀️';}}catch{}
+  try{const k=localStorage.getItem('ir-anthropic-key');if(k)ANTHROPIC_KEY=k;}catch{}
+}
+function saveApiKey(key){
+  ANTHROPIC_KEY=key.trim();
+  try{localStorage.setItem('ir-anthropic-key',ANTHROPIC_KEY);}catch{}
+  toast(ANTHROPIC_KEY?'Clé API enregistrée ✓':'Clé supprimée','ok');
+}
+function openApiSettings(){
+  setMod('⚙ Paramètres IA',`
+    <div style="background:var(--gold3);border:1px solid rgba(212,168,83,.25);border-radius:12px;padding:13px 15px;margin-bottom:16px;font-size:12px;color:var(--t2);line-height:1.7">
+      <div style="font-weight:700;color:var(--gold);margin-bottom:5px">🤖 Intelligence Artificielle</div>
+      La clé API Anthropic permet à ImmoRénov de :<br>
+      • Lire automatiquement les tickets & factures<br>
+      • Extraire montant, date, commerce<br>
+      • Suggérer la catégorie de dépense<br>
+      • Analyser vos données immobilières
+    </div>
+    <div class="field">
+      <label>Clé API Anthropic</label>
+      <div class="pw-w">
+        <input class="inp" id="api-key-inp" type="password" 
+          value="${ANTHROPIC_KEY}" 
+          placeholder="sk-ant-api03-...">
+        <button class="eye" onclick="const i=document.getElementById('api-key-inp');i.type=i.type==='password'?'text':'password'">👁</button>
+      </div>
+      <div style="color:var(--t4);font-size:11px;margin-top:5px">
+        Trouvez votre clé sur <strong style="color:var(--gold)">console.anthropic.com</strong> → API Keys
+      </div>
+    </div>
+    <button class="btn btn-full" onclick="saveApiKey(document.getElementById('api-key-inp').value);closeMod()">Enregistrer</button>
+    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:10px;padding:11px 13px;margin-top:12px;font-size:11px;color:var(--t4)">
+      🔒 La clé est stockée uniquement sur votre appareil, jamais envoyée à Firebase.
+    </div>`);
+  openMod();
 }
 
 // ══ FIREBASE ══
@@ -979,6 +1018,13 @@ const NAV_GROUPS={
     {id:'gallery',label:'📸 Galerie'},
     {id:'docslocataires',label:'📁 Dossiers'},
   ]},
+  ia:{label:'Assistant IA',sub:[
+    {id:'ia-juridique',label:'⚖️ Juridique'},
+    {id:'ia-anomalies',label:'🔍 Anomalies'},
+    {id:'ia-rapport',label:'📊 Rapport'},
+    {id:'ia-courriers',label:'📝 Courriers'},
+    {id:'ia-devis',label:'🏗️ Devis'},
+  ]},
 };
 // Mapping sous-tab → groupe parent
 const TAB_PARENT={};
@@ -1016,7 +1062,9 @@ function renderTab(tab){
   const r={dashboard:rDash,planning:rPlanning,works:rWorks,artisans:rArtisans,
     tenants:rTenants,rents:rRents,charges:rCharges,expenses:rExpenses,
     edl:rEDL,inventory:rInventory,budget:rBudget,notes:rNotes,
-    gallery:rGallery,docslocataires:rDocsLocataires};
+    gallery:rGallery,docslocataires:rDocsLocataires,
+    'ia-juridique':rIAJuridique,'ia-anomalies':rIAAnomalies,
+    'ia-rapport':rIARapport,'ia-courriers':rIACourriers,'ia-devis':rIADevis};
   if(r[tab])r[tab](el);else el.innerHTML='<div class="empty">Section en cours...</div>';
 }
 
@@ -1148,10 +1196,158 @@ function uploadingToast(show){
 }
 
 function processCapture(photo){
-  if(scanMode==='expense')openExpenseModal(null,photo);
+  if(scanMode==='expense'){
+    if(ANTHROPIC_KEY){
+      analyzeReceiptWithAI(photo);
+    } else {
+      openExpenseModal(null,photo);
+    }
+  }
   else if(scanMode==='tenant-doc')saveTenantDoc(photo);
   else if(scanMode==='phase-photo')savePhasePhoto(photo);
   else if(scanMode==='edl-photo')saveEDLPhoto(photo);
+}
+
+// ══ OCR TICKET / FACTURE avec Claude Vision ══
+async function analyzeReceiptWithAI(photo){
+  // Afficher un écran de chargement
+  setMod('🤖 Analyse en cours...', `
+    <div style="text-align:center;padding:32px 16px">
+      <div style="font-size:48px;margin-bottom:16px;animation:spin 1s linear infinite">⚙</div>
+      <div style="color:var(--t1);font-weight:700;font-size:15px;margin-bottom:8px">Lecture du ticket...</div>
+      <div style="color:var(--t4);font-size:13px">Claude analyse votre photo</div>
+    </div>
+    <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>`);
+  openMod();
+
+  try {
+    // Extraire le base64 pur (sans le préfixe data:image/jpeg;base64,)
+    const base64 = photo.includes(',') ? photo.split(',')[1] : photo;
+    const mediaType = photo.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mediaType, data: base64 }
+            },
+            {
+              type: 'text',
+              text: `Analyse ce ticket de caisse ou cette facture et extrait les informations suivantes en JSON uniquement, sans texte avant ou après :
+{
+  "montant": (nombre décimal, montant TOTAL à payer, pas de devise),
+  "date": (format YYYY-MM-DD ou null si non lisible),
+  "commerce": (nom du magasin/fournisseur ou null),
+  "categorie": (une seule valeur parmi : "Travaux", "Entretien", "Matériaux", "Charges", "Déplacement", "Administratif", "Autre"),
+  "description": (courte description de l'achat, max 50 caractères)
+}
+Si c'est une facture professionnelle, mets "Travaux" ou "Matériaux" selon le contenu.`
+            }
+          ]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || 'Erreur API');
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+
+    // Parser le JSON retourné
+    let extracted = {};
+    try {
+      const clean = text.replace(/```json|```/g, '').trim();
+      extracted = JSON.parse(clean);
+    } catch {
+      // Si le JSON est mal formé, fallback
+      extracted = {};
+    }
+
+    // Ouvrir le formulaire avec les données extraites
+    openExpenseModalWithData(photo, extracted);
+
+  } catch(err) {
+    console.error('OCR error:', err);
+    // En cas d'erreur → ouvrir le formulaire vide avec juste la photo
+    toast('OCR non disponible — remplissez manuellement', 'err');
+    openExpenseModal(null, photo);
+  }
+}
+
+function openExpenseModalWithData(photo, data){
+  const p=P();if(!p)return;ensure(p);
+  const f={
+    label: data.description || data.commerce || '',
+    date: data.date || today(),
+    amount: data.montant || '',
+    category: data.categorie || 'Travaux',
+    paidBy: 'moi',
+    notes: data.commerce ? 'Chez ' + data.commerce : '',
+    recurring: false,
+    recurringFreq: 'monthly',
+    nextDate: ''
+  };
+
+  const aiDetected = data.montant || data.commerce || data.description;
+
+  setMod('Nouvelle dépense', `
+    ${photo ? `<div style="margin-bottom:12px;cursor:pointer;position:relative" onclick="viewPhoto('${photo}')">
+      <img src="${photo}" style="width:100%;max-height:130px;object-fit:cover;border-radius:10px;border:1px solid var(--bd)">
+      ${aiDetected ? `<div style="position:absolute;top:8px;right:8px;background:var(--gold);color:#080b12;font-size:10px;font-weight:800;padding:3px 9px;border-radius:99px;letter-spacing:.05em">🤖 IA</div>` : ''}
+    </div>` : ''}
+
+    ${aiDetected ? `<div style="background:var(--gold3);border:1px solid rgba(212,168,83,.25);border-radius:10px;padding:10px 13px;margin-bottom:13px;font-size:12px;color:var(--t2)">
+      🤖 <strong style="color:var(--gold)">IA a détecté</strong> : ${[data.commerce, data.montant ? fmt(data.montant) : null, data.date ? fmtD(data.date) : null].filter(Boolean).join(' · ')}
+      <br><span style="color:var(--t4);font-size:11px">Vérifiez et corrigez si nécessaire</span>
+    </div>` : `<div style="background:var(--red2);border:1px solid rgba(255,77,109,.2);border-radius:10px;padding:10px 13px;margin-bottom:13px;font-size:12px;color:var(--t3)">
+      ⚠ Lecture automatique impossible — remplissez manuellement
+    </div>`}
+
+    <div class="field"><label>Libellé</label><input class="inp" id="f-label" value="${f.label}" placeholder="ex: Plinthe cuisine, Ampoules..."></div>
+    <div class="g2">
+      <div class="field"><label>Montant €</label><input class="inp" id="f-amt" type="number" step="0.01" value="${f.amount}" placeholder="0.00" ${aiDetected&&data.montant?'style="border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,168,83,.15)"':''}></div>
+      <div class="field"><label>Date</label><input class="inp" id="f-date" type="date" value="${f.date}"></div>
+    </div>
+    <div class="g2">
+      <div class="field"><label>Catégorie</label><select class="inp" id="f-cat">${EXP_CATS.map(c=>`<option value="${c}" ${f.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="field"><label>Phase associée</label><select class="inp" id="f-phase"><option value="">— Aucune —</option>${(P()?.phases||[]).map(ph=>`<option value="${ph.id}">${ph.name}</option>`).join('')}</select></div>
+    </div>
+    <div class="field">
+      <label>Payé par</label>
+      <div class="payer-opts" id="payer-opts">${renderPayerOpts(f.paidBy)}</div>
+      <input type="hidden" id="f-payer" value="${f.paidBy}">
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);padding:11px 13px;margin-bottom:13px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="f-rec" style="width:16px;height:16px;accent-color:var(--purple);cursor:pointer" onchange="document.getElementById('rec-opts').style.display=this.checked?'block':'none'">
+        <label for="f-rec" style="color:var(--t2);font-size:13px;cursor:pointer">🔄 Dépense récurrente</label>
+      </div>
+      <div id="rec-opts" style="display:none;margin-top:10px">
+        <div class="g2">
+          <div class="field" style="margin-bottom:0"><label>Fréquence</label><select class="inp" id="f-rfreq">${Object.entries(REC_FREQ).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+          <div class="field" style="margin-bottom:0"><label>Prochaine date</label><input class="inp" id="f-ndate" type="date"></div>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label>Notes</label><input class="inp" id="f-notes" value="${f.notes}"></div>
+    <input type="hidden" id="f-photo" value="${photo||''}">
+    <button class="btn btn-full" onclick="saveExpense(0)">Enregistrer la dépense</button>`);
+  openMod();
 }
 
 // ══ GLOBAL SEARCH ══
@@ -3434,6 +3630,577 @@ function exportRentsPDF(){
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Loyers ${p.info.name}</title><style>@media print{body{margin:0}}</style></head><body>${html}<script>window.onload=()=>window.print()<\/script></body></html>`);
   w.document.close();
+}
+
+// ══════════════════════════════════════════════
+// IA — FONCTIONS CENTRALES
+// ══════════════════════════════════════════════
+
+// Appel Claude API générique
+async function callClaude(systemPrompt, userContent, maxTokens=1500){
+  if(!ANTHROPIC_KEY){
+    return {error:'no_key', msg:'Clé API non configurée. Clique sur 🤖 en haut pour la configurer.'};
+  }
+  try{
+    const messages=[{role:'user',content:userContent}];
+    const body={model:'claude-opus-4-5',max_tokens:maxTokens,messages};
+    if(systemPrompt)body.system=systemPrompt;
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify(body)
+    });
+    if(!resp.ok){const e=await resp.json();throw new Error(e.error?.message||'Erreur API '+resp.status);}
+    const data=await resp.json();
+    return {ok:true, text:data.content?.[0]?.text||''};
+  }catch(err){
+    return {error:'api_error', msg:err.message};
+  }
+}
+
+// Afficher état chargement IA
+function iaLoading(el, msg='Analyse en cours...'){
+  el.innerHTML=`
+  <div style="text-align:center;padding:40px 16px">
+    <div style="font-size:42px;margin-bottom:14px;display:inline-block;animation:spin 1.2s linear infinite">⚙</div>
+    <div style="color:var(--t1);font-weight:700;font-size:15px;margin-bottom:6px">${msg}</div>
+    <div style="color:var(--t4);font-size:13px">Claude analyse vos données...</div>
+  </div>
+  <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>`;
+}
+
+// Afficher erreur IA
+function iaError(el, msg){
+  el.innerHTML=`
+  <div style="background:var(--red2);border:1px solid rgba(255,77,109,.3);border-radius:14px;padding:18px;text-align:center;margin:20px 0">
+    <div style="font-size:28px;margin-bottom:10px">⚠️</div>
+    <div style="color:var(--red);font-weight:700;margin-bottom:6px">Erreur</div>
+    <div style="color:var(--t3);font-size:13px">${msg}</div>
+    ${msg.includes('Clé API')?`<button class="btn btn-sm" style="margin-top:14px" onclick="openApiSettings()">⚙ Configurer la clé API</button>`:''}
+  </div>`;
+}
+
+// Résumé données bien pour le contexte IA
+function getBienContext(p){
+  if(!p)return'Aucun bien sélectionné.';
+  ensure(p);
+  const chAnn=p.charges.reduce((s,c)=>{const m={monthly:12,quarterly:4,annual:1,once:0};return s+c.amount*(m[c.frequency]||0);},0);
+  const tExp=p.expenses.reduce((s,e)=>s+e.amount,0);
+  const activeT=p.tenants.filter(t=>t.status==='active');
+  const impayés=p.rents.filter(r=>!r.paid).length;
+  return `Bien : ${p.info.name} (${p.info.type}, ${p.info.surface}m², DPE:${p.info.dpe||'?'})
+Adresse : ${p.info.address}
+Prix achat : ${p.info.purchasePrice}€ | Loyer cible : ${p.info.targetRent}€/mois
+Locataires actifs : ${activeT.map(t=>t.name+' (bail jusqu'au '+fmtD(t.leaseEnd)+')').join(', ')||'Aucun'}
+Charges annuelles : ${chAnn}€ | Dépenses totales : ${tExp}€
+Loyers impayés : ${impayés}
+Phases travaux : ${p.phases.map(ph=>ph.name+' ('+SL[ph.status]+', budget:'+ph.budget+'€, dépensé:'+ph.spent+'€)').join('; ')||'Aucune'}
+Dépenses récentes : ${p.expenses.slice(-5).map(e=>e.date+' '+e.label+' '+e.amount+'€').join('; ')||'Aucune'}`;
+}
+
+// ══════════════════════════════════════════════
+// 1. ⚖️ ASSISTANT JURIDIQUE
+// ══════════════════════════════════════════════
+function rIAJuridique(el){
+  const p=P();
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 class="section-h" style="margin:0">⚖️ Assistant juridique</h3>
+    ${!ANTHROPIC_KEY?`<button class="btn-g btn-sm" onclick="openApiSettings()">⚙ Clé API</button>`:''}
+  </div>
+
+  <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px">
+    <div style="color:var(--t4);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Questions fréquentes</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      ${[
+        'Mon locataire ne paye pas le loyer depuis 2 mois, que faire ?',
+        'Puis-je récupérer le dépôt de garantie pour des dégradations ?',
+        'Comment donner congé à mon locataire légalement ?',
+        'Quelles charges puis-je récupérer sur mon locataire ?',
+        'Mon locataire veut partir avant la fin du bail, est-ce possible ?',
+        'Quelle est la procédure pour augmenter le loyer ?',
+      ].map(q=>`<button onclick="askJuridique(${JSON.stringify(q)})" style="text-align:left;background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:10px 13px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--t2);transition:all .15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--bd)'">${q}</button>`).join('')}
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Votre question juridique</label>
+    <textarea class="notes-area" id="juridique-q" placeholder="Ex: Mon locataire a sous-loué sans autorisation, quels sont mes droits ?" style="min-height:80px"></textarea>
+  </div>
+  <button class="btn btn-full" onclick="askJuridique(document.getElementById('juridique-q').value)">⚖️ Obtenir une réponse juridique</button>
+
+  <div id="juridique-result" style="margin-top:14px"></div>`;
+}
+
+async function askJuridique(question){
+  if(!question?.trim()){toast('Posez une question d'abord','err');return;}
+  const p=P();
+  const resEl=document.getElementById('juridique-result');
+  if(!resEl)return;
+  iaLoading(resEl,'Consultation juridique...');
+
+  const context=p?`
+Contexte de l'utilisateur :
+${getBienContext(p)}`:'';
+  const result=await callClaude(
+    `Tu es un expert en droit immobilier français, spécialisé dans la location résidentielle (loi du 6 juillet 1989, loi ALUR, loi ELAN). 
+Tu réponds de façon claire, pratique et structurée. Tu cites les articles de loi pertinents. 
+Tu rappelles toujours qu'il est conseillé de consulter un professionnel pour les cas complexes.
+Tu réponds en français.${context}`,
+    question,
+    1500
+  );
+
+  if(result.error){iaError(resEl,result.msg);return;}
+
+  // Formatter la réponse
+  const formatted=result.text
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/
+
+/g,'</p><p style="margin-bottom:10px">')
+    .replace(/
+/g,'<br>')
+    .replace(/^/,'<p style="margin-bottom:10px">')
+    .replace(/$/,'</p>');
+
+  resEl.innerHTML=`
+  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#1a1a2e,#252850);padding:13px 16px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">⚖️</span>
+      <div>
+        <div style="color:#fff;font-weight:700;font-size:13px">Réponse juridique</div>
+        <div style="color:rgba(255,255,255,.5);font-size:10px">Basée sur le droit immobilier français</div>
+      </div>
+    </div>
+    <div style="padding:16px;color:var(--t2);font-size:13px;line-height:1.7">${formatted}</div>
+    <div style="padding:10px 16px;background:var(--bg3);border-top:1px solid var(--bd);font-size:10px;color:var(--t4)">
+      ⚠ Information à titre indicatif — consultez un professionnel pour les cas complexes
+    </div>
+  </div>
+  <button class="btn-g" style="width:100%;margin-top:9px;padding:10px" onclick="copyToClipboard(this.previousElementSibling.querySelector('div:nth-child(2)').innerText)">📋 Copier la réponse</button>`;
+}
+
+// ══════════════════════════════════════════════
+// 2. 🔍 DÉTECTION D'ANOMALIES
+// ══════════════════════════════════════════════
+function rIAAnomalies(el){
+  const p=P();
+  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d'abord</div>';return;}
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 class="section-h" style="margin:0">🔍 Détection d'anomalies</h3>
+  </div>
+  <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--t3);line-height:1.6">
+    Claude analyse vos données et détecte les anomalies : dépenses inhabituelles, loyers en retard récurrents, charges qui augmentent, rentabilité en baisse...
+  </div>
+  <button class="btn btn-full" onclick="runAnomalies()">🔍 Analyser maintenant</button>
+  <div id="anomalies-result" style="margin-top:14px"></div>`;
+}
+
+async function runAnomalies(){
+  const p=P();if(!p)return;ensure(p);
+  const resEl=document.getElementById('anomalies-result');
+  if(!resEl)return;
+  iaLoading(resEl,'Détection des anomalies...');
+
+  // Préparer données détaillées
+  const expByMonth={};
+  p.expenses.forEach(e=>{
+    const m=e.date?.slice(0,7)||'?';
+    expByMonth[m]=(expByMonth[m]||0)+e.amount;
+  });
+  const rentHistory=p.rents.map(r=>`${r.month}: ${r.paid?'Payé':'IMPAYÉ'} ${r.amount}€ (${p.tenants.find(t=>t.id===r.tenantId)?.name||'?'})`).join('
+');
+  const expHistory=Object.entries(expByMonth).sort().map(([m,v])=>`${m}: ${v}€`).join('
+');
+
+  const result=await callClaude(
+    `Tu es un analyste immobilier expert. Tu analyses les données d'un bien immobilier et identifies les anomalies, risques et points d'attention.
+Format ta réponse avec des sections claires : 🔴 Alertes critiques, 🟡 Points d'attention, 🟢 Points positifs, 💡 Recommandations.
+Sois concis et actionnable. Réponds en français.`,
+    `Analyse ce bien immobilier et détecte les anomalies :
+
+${getBienContext(p)}
+
+Historique loyers :
+${rentHistory||'Aucun'}
+
+Dépenses par mois :
+${expHistory||'Aucune'}`,
+    1500
+  );
+
+  if(result.error){iaError(resEl,result.msg);return;}
+
+  const formatted=result.text
+    .replace(/🔴(.*?)(?=
+|$)/g,'<div style="background:var(--red2);border:1px solid rgba(255,77,109,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--red)">🔴$1</strong></div>')
+    .replace(/🟡(.*?)(?=
+|$)/g,'<div style="background:var(--orange2);border:1px solid rgba(255,140,66,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--orange)">🟡$1</strong></div>')
+    .replace(/🟢(.*?)(?=
+|$)/g,'<div style="background:var(--green2);border:1px solid rgba(0,208,132,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--green)">🟢$1</strong></div>')
+    .replace(/💡(.*?)(?=
+|$)/g,'<div style="background:var(--gold3);border:1px solid rgba(212,168,83,.25);border-radius:10px;padding:10px 13px;margin-bottom:9px"><strong style="color:var(--gold)">💡$1</strong></div>')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/
+
+/g,'<br><br>')
+    .replace(/
+/g,'<br>');
+
+  resEl.innerHTML=`
+  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,var(--bg3),var(--bg2));padding:13px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center">
+      <div style="color:var(--t1);font-weight:700">Analyse de ${p.info.name}</div>
+      <div style="color:var(--t4);font-size:11px">${new Date().toLocaleDateString('fr-FR')}</div>
+    </div>
+    <div style="padding:16px;font-size:13px;color:var(--t2);line-height:1.7">${formatted}</div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════
+// 3. 📊 RAPPORT MENSUEL INTELLIGENT
+// ══════════════════════════════════════════════
+function rIARapport(el){
+  const p=P();
+  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d'abord</div>';return;}
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 class="section-h" style="margin:0">📊 Rapport mensuel</h3>
+  </div>
+  <div class="field">
+    <label>Mois du rapport</label>
+    <input class="inp" id="rapport-month" type="month" value="${thisMonth()}">
+  </div>
+  <button class="btn btn-full" onclick="genRapport()">📊 Générer le rapport</button>
+  <div id="rapport-result" style="margin-top:14px"></div>`;
+}
+
+async function genRapport(){
+  const p=P();if(!p)return;ensure(p);
+  const month=document.getElementById('rapport-month')?.value||thisMonth();
+  const resEl=document.getElementById('rapport-result');
+  if(!resEl)return;
+  iaLoading(resEl,'Génération du rapport...');
+
+  const rentsMonth=p.rents.filter(r=>r.month===month);
+  const expMonth=p.expenses.filter(e=>e.date?.startsWith(month));
+  const tLoyers=rentsMonth.reduce((s,r)=>s+r.amount,0);
+  const tExp=expMonth.reduce((s,e)=>s+e.amount,0);
+  const impayés=rentsMonth.filter(r=>!r.paid).length;
+
+  const result=await callClaude(
+    `Tu es un gestionnaire immobilier professionnel. Tu génères des rapports mensuels clairs et utiles pour un propriétaire bailleur.
+Structure : Résumé exécutif, Loyers du mois, Dépenses du mois, Travaux en cours, Alertes & Actions requises, Tendances.
+Sois professionnel, précis et orienté action. Réponds en français.`,
+    `Génère le rapport mensuel de ${fmtM(month)} pour :
+
+${getBienContext(p)}
+
+Loyers ce mois (${fmtM(month)}) :
+${rentsMonth.map(r=>`- ${p.tenants.find(t=>t.id===r.tenantId)?.name||'?'}: ${r.amount}€ ${r.paid?'✓ payé':'⚠ IMPAYÉ'}`).join('
+')||'Aucun loyer enregistré'}
+
+Dépenses ce mois :
+${expMonth.map(e=>`- ${e.date} ${e.label}: ${e.amount}€ (${e.category})`).join('
+')||'Aucune dépense'}`,
+    2000
+  );
+
+  if(result.error){iaError(resEl,result.msg);return;}
+
+  const formatted=result.text
+    .replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--t1)">$1</strong>')
+    .replace(/## (.*?)(?=
+|$)/g,'<div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:800;color:var(--t1);margin:16px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">$1</div>')
+    .replace(/
+
+/g,'<br>')
+    .replace(/
+/g,'<br>');
+
+  resEl.innerHTML=`
+  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#1a1a2e,#252850);padding:14px 18px">
+      <div style="color:#fff;font-weight:800;font-size:15px">Rapport mensuel · ${fmtM(month)}</div>
+      <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:2px">${p.info.name}</div>
+    </div>
+    <div style="padding:18px;font-size:13px;color:var(--t2);line-height:1.8">${formatted}</div>
+    <div style="padding:12px 18px;background:var(--bg3);border-top:1px solid var(--bd);display:flex;gap:9px">
+      <button class="btn-g btn-sm" style="flex:1" onclick="printRapport()">🖨 Imprimer</button>
+      <button class="btn-g btn-sm" style="flex:1" onclick="copyToClipboard(document.querySelector('#rapport-result').innerText)">📋 Copier</button>
+    </div>
+  </div>`;
+}
+
+function printRapport(){
+  const el=document.getElementById('rapport-result');if(!el)return;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport</title><style>body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;padding:20px;color:#1a1a2e;line-height:1.7}@media print{body{margin:0}}</style></head><body>${el.innerHTML}<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+
+// ══════════════════════════════════════════════
+// 4. 📝 RÉDACTION AUTOMATIQUE DE COURRIERS
+// ══════════════════════════════════════════════
+const COURRIER_TYPES=[
+  {id:'relance-loyer',label:'📬 Relance loyer impayé',desc:'Rappel amiable de paiement'},
+  {id:'mise-en-demeure',label:'⚠️ Mise en demeure',desc:'Courrier formel de mise en demeure'},
+  {id:'conge-proprietaire',label:'🔑 Congé donné par le bailleur',desc:'Reprise du logement ou vente'},
+  {id:'fin-bail',label:'📄 Information fin de bail',desc:'Notification de fin de contrat'},
+  {id:'augmentation-loyer',label:'📈 Révision du loyer (IRL)',desc:'Information sur la nouvelle révision'},
+  {id:'travaux-locataire',label:'🔧 Travaux dans le logement',desc:'Notification de travaux à venir'},
+  {id:'retenue-caution',label:'💼 Retenue sur dépôt de garantie',desc:'Justification de retenue partielle'},
+];
+
+function rIACourriers(el){
+  const p=P();
+  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d'abord</div>';return;}
+  ensure(p);
+  const activeT=p.tenants.filter(t=>t.status==='active');
+
+  el.innerHTML=`
+  <h3 class="section-h">📝 Rédaction de courriers</h3>
+  <div class="field">
+    <label>Type de courrier</label>
+    <select class="inp" id="courrier-type" onchange="updateCourrierDesc()">
+      ${COURRIER_TYPES.map(c=>`<option value="${c.id}">${c.label}</option>`).join('')}
+    </select>
+    <div id="courrier-desc" style="color:var(--t4);font-size:11px;margin-top:5px">${COURRIER_TYPES[0].desc}</div>
+  </div>
+  ${activeT.length?`<div class="field">
+    <label>Destinataire</label>
+    <select class="inp" id="courrier-tenant">
+      ${activeT.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+      <option value="">— Général (sans locataire spécifique)</option>
+    </select>
+  </div>`:''}
+  <div class="field">
+    <label>Informations complémentaires (optionnel)</label>
+    <textarea class="notes-area" id="courrier-notes" placeholder="Ex: montant impayé, date limite, raison..." style="min-height:64px"></textarea>
+  </div>
+  <button class="btn btn-full" onclick="genCourrier()">📝 Rédiger le courrier</button>
+  <div id="courrier-result" style="margin-top:14px"></div>`;
+}
+
+function updateCourrierDesc(){
+  const sel=document.getElementById('courrier-type')?.value;
+  const type=COURRIER_TYPES.find(c=>c.id===sel);
+  const desc=document.getElementById('courrier-desc');
+  if(desc&&type)desc.textContent=type.desc;
+}
+
+async function genCourrier(){
+  const p=P();if(!p)return;ensure(p);
+  const type=document.getElementById('courrier-type')?.value;
+  const tenantId=parseInt(document.getElementById('courrier-tenant')?.value)||null;
+  const notes=document.getElementById('courrier-notes')?.value||'';
+  const tenant=tenantId?p.tenants.find(t=>t.id===tenantId):null;
+  const typeLabel=COURRIER_TYPES.find(c=>c.id===type)?.label||type;
+
+  const resEl=document.getElementById('courrier-result');
+  if(!resEl)return;
+  iaLoading(resEl,'Rédaction du courrier...');
+
+  const result=await callClaude(
+    `Tu es un expert en droit immobilier français. Tu rédiges des courriers professionnels, formels et juridiquement conformes pour les relations bailleur-locataire.
+Structure : En-tête (Lieu, Date), Objet, Corps du courrier avec formule de politesse professionnelle.
+Laisse des espaces [À COMPLÉTER] pour les informations spécifiques que l'utilisateur devra renseigner.
+Réponds uniquement avec le courrier, sans explication.`,
+    `Rédige un courrier "${typeLabel}" avec ces informations :
+Bailleur : ${SES?.username||'[Nom du bailleur]'}
+Bien : ${p.info.address}
+${tenant?`Locataire : ${tenant.name}, bail du ${fmtD(tenant.leaseStart)} au ${fmtD(tenant.leaseEnd)}, loyer : ${tenant.rent}€`:'Destinataire général'}
+Informations complémentaires : ${notes||'Standard'}
+Date : ${new Date().toLocaleDateString('fr-FR')}`,
+    1200
+  );
+
+  if(result.error){iaError(resEl,result.msg);return;}
+
+  resEl.innerHTML=`
+  <div style="background:#fff;border:1px solid #ddd;border-radius:14px;overflow:hidden">
+    <div style="background:#1a1a2e;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div style="color:#fff;font-weight:700;font-size:13px">${typeLabel}</div>
+      <div style="color:rgba(255,255,255,.5);font-size:10px">Généré par IA</div>
+    </div>
+    <div id="courrier-text" style="padding:20px;font-family:'Courier New',monospace;font-size:12px;color:#1a1a2e;line-height:1.8;white-space:pre-wrap">${result.text}</div>
+    <div style="padding:12px 16px;background:#f8f8f8;border-top:1px solid #eee;display:flex;gap:8px">
+      <button class="btn-g btn-sm" style="flex:1" onclick="printCourrier()">🖨 Imprimer</button>
+      <button class="btn-g btn-sm" style="flex:1" onclick="copyToClipboard(document.getElementById('courrier-text').innerText)">📋 Copier</button>
+    </div>
+  </div>`;
+}
+
+function printCourrier(){
+  const el=document.getElementById('courrier-text');if(!el)return;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Courrier</title><style>body{font-family:'Courier New',monospace;max-width:600px;margin:40px auto;padding:20px;color:#1a1a2e;font-size:12px;line-height:1.8;white-space:pre-wrap}@media print{body{margin:20px}}</style></head><body>${el.innerText}<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+
+// ══════════════════════════════════════════════
+// 5. 🏗️ ANALYSE DE DEVIS ARTISAN
+// ══════════════════════════════════════════════
+function rIADevis(el){
+  const p=P();
+  if(!p){el.innerHTML='<div class="empty">Ouvrez un bien d'abord</div>';return;}
+  el.innerHTML=`
+  <h3 class="section-h">🏗️ Analyse de devis</h3>
+  <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--t3);line-height:1.6">
+    Prenez en photo un devis artisan. Claude analyse les postes, évalue le prix et compare avec votre budget de phase.
+  </div>
+  <div style="display:flex;gap:9px;margin-bottom:14px">
+    <button class="btn-scan" style="flex:1;justify-content:center;padding:14px" onclick="scanDevis()">📷 Scanner un devis</button>
+    <button class="btn-g" style="flex:1;padding:14px" onclick="saisirDevis()">✏️ Saisir le texte</button>
+  </div>
+  <div id="devis-result" style="margin-top:4px"></div>`;
+}
+
+function scanDevis(){
+  scanMode='devis';
+  openScanner('devis');
+}
+
+function saisirDevis(){
+  setMod('Saisir le devis',`
+    <div class="field"><label>Texte du devis (copiez-collez ou résumez)</label>
+      <textarea class="notes-area" id="devis-text" style="min-height:120px" placeholder="Ex: Pose carrelage 45m² : 2800€
+Fourniture carrelage : 1200€
+Total HT : 4000€
+TVA 10% : 400€
+Total TTC : 4400€"></textarea>
+    </div>
+    <button class="btn btn-full" onclick="analyzeDevisText(document.getElementById('devis-text').value);closeMod()">Analyser</button>`);
+  openMod();
+}
+
+async function processDevisPhoto(photo){
+  const resEl=document.getElementById('devis-result');
+  if(!resEl)return;
+  iaLoading(resEl,'Analyse du devis...');
+
+  const p=P();
+  const base64=photo.includes(',')?photo.split(',')[1]:photo;
+  const result=await callClaude(
+    null,
+    [{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
+     {type:'text',text:`Analyse ce devis artisan en JSON uniquement :
+{"artisan":"nom","metier":"type de travaux","montantHT":0,"tva":0,"montantTTC":0,"postes":[{"nom":"","montant":0}],"evaluation":"BON/CORRECT/CHER/TRES_CHER","commentaire":"court avis"}
+Si tu ne peux pas lire un champ, mets null.`}]
+  );
+
+  if(result.error){iaError(resEl,result.msg);return;}
+  try{
+    const d=JSON.parse(result.text.replace(/```json|```/g,'').trim());
+    displayDevisAnalysis(d,p);
+  }catch{
+    // Afficher brut si JSON invalide
+    resEl.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:16px;font-size:13px;color:var(--t2);line-height:1.7">${result.text}</div>`;
+  }
+}
+
+async function analyzeDevisText(text){
+  if(!text?.trim())return;
+  const resEl=document.getElementById('devis-result');
+  if(!resEl)return;
+  iaLoading(resEl,'Analyse du devis...');
+
+  const p=P();
+  const result=await callClaude(
+    `Tu es expert en travaux immobiliers. Analyse ce devis et évalue si les prix sont raisonnables pour la région française (prix marché 2024-2025). Réponds en JSON uniquement.`,
+    `Analyse ce devis :
+${text}
+
+Réponds en JSON : {"artisan":"?","metier":"?","montantHT":0,"tva":0,"montantTTC":0,"postes":[{"nom":"","montant":0}],"evaluation":"BON/CORRECT/CHER/TRES_CHER","commentaire":"avis détaillé sur les prix","recommandations":"points à négocier ou vérifier"}`
+  );
+
+  if(result.error){iaError(resEl,result.msg);return;}
+  try{
+    const d=JSON.parse(result.text.replace(/```json|```/g,'').trim());
+    displayDevisAnalysis(d,p);
+  }catch{
+    resEl.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:16px;font-size:13px;color:var(--t2);line-height:1.7">${result.text.replace(/\n/g,'<br>')}</div>`;
+  }
+}
+
+function displayDevisAnalysis(d,p){
+  const resEl=document.getElementById('devis-result');if(!resEl)return;
+  const evalColor={BON:'var(--green)',CORRECT:'var(--teal)',CHER:'var(--orange)',TRES_CHER:'var(--red)'};
+  const evalLabel={BON:'✅ Bon prix',CORRECT:'👍 Correct',CHER:'⚠️ Un peu cher',TRES_CHER:'🔴 Trop cher'};
+  const col=evalColor[d.evaluation]||'var(--t2)';
+  const lbl=evalLabel[d.evaluation]||d.evaluation;
+
+  // Vérifier vs budget phase si dispo
+  let budgetCompare='';
+  if(p&&d.montantTTC){
+    const phases=p.phases||[];
+    const totalBudget=phases.reduce((s,ph)=>s+ph.budget,0);
+    const totalSpent=phases.reduce((s,ph)=>s+ph.spent,0);
+    const reste=totalBudget-totalSpent;
+    if(reste>0){
+      const fits=d.montantTTC<=reste;
+      budgetCompare=`<div style="background:${fits?'var(--green2)':'var(--red2)'};border:1px solid ${fits?'rgba(0,208,132,.3)':'rgba(255,77,109,.3)'};border-radius:10px;padding:11px 13px;margin-bottom:12px">
+        <div style="font-weight:700;color:${fits?'var(--green)':'var(--red)'}">${fits?'✓ Rentre dans le budget restant':'⚠ Dépasse le budget restant'}</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:3px">Budget travaux restant : ${fmt(reste)} · Devis : ${fmt(d.montantTTC)}</div>
+      </div>`;
+    }
+  }
+
+  resEl.innerHTML=`
+  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,var(--bg3),var(--bg2));padding:13px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center">
+      <div><div style="color:var(--t1);font-weight:700">${d.artisan||'Artisan'} · ${d.metier||'Travaux'}</div></div>
+      <div style="font-size:13px;font-weight:800;color:${col}">${lbl}</div>
+    </div>
+    <div style="padding:16px">
+      ${budgetCompare}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:14px">
+        <div class="kc"><div class="kl">HT</div><div class="kv">${fmt(d.montantHT)}</div></div>
+        <div class="kc"><div class="kl">TVA</div><div class="kv">${fmt(d.tva)}</div></div>
+        <div class="kc" style="border-color:${col}44"><div class="kl">TTC</div><div class="kv" style="color:${col}">${fmt(d.montantTTC)}</div></div>
+      </div>
+      ${d.postes?.length?`<div class="sl" style="margin-bottom:8px">Détail des postes</div>
+        ${d.postes.map(p2=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd2);font-size:13px"><span style="color:var(--t2)">${p2.nom}</span><span style="font-weight:700">${fmt(p2.montant)}</span></div>`).join('')}`:''}
+      ${d.commentaire?`<div style="background:var(--bg3);border-radius:10px;padding:12px;margin-top:12px;font-size:13px;color:var(--t2);line-height:1.6"><strong style="color:var(--gold)">Avis IA :</strong> ${d.commentaire}</div>`:''}
+      ${d.recommandations?`<div style="background:var(--blue2);border:1px solid rgba(77,159,255,.25);border-radius:10px;padding:12px;margin-top:9px;font-size:13px;color:var(--t2);line-height:1.6"><strong style="color:var(--blue)">💡 Recommandations :</strong> ${d.recommandations}</div>`:''}
+    </div>
+    <div style="padding:12px 16px;background:var(--bg3);border-top:1px solid var(--bd);display:flex;gap:8px">
+      <button class="btn btn-sm" style="flex:1" onclick="importDevisAsArtisan(${JSON.stringify(d).replace(/"/g,'&quot;')})">+ Importer comme artisan</button>
+    </div>
+  </div>`;
+}
+
+function importDevisAsArtisan(d){
+  const p=P();if(!p)return;ensure(p);
+  p.artisans.push({
+    id:Date.now(),
+    name:d.artisan||'Artisan inconnu',
+    trade:d.metier||'Travaux',
+    phone:'',email:'',
+    status:'upcoming',
+    quote:d.montantTTC||0,
+    invoice:null,
+    rating:3,
+    notes:'Importé depuis analyse IA · '+new Date().toLocaleDateString('fr-FR'),
+    phaseId:null
+  });
+  addLog(`a importé artisan "${d.artisan||'Artisan'}" depuis analyse devis`);
+  scheduleSave();
+  toast('Artisan importé dans la liste ✓','ok');
+}
+
+// Utilitaire copier
+function copyToClipboard(text){
+  navigator.clipboard?.writeText(text).then(()=>toast('Copié ✓','ok')).catch(()=>toast('Copie non disponible','err'));
+}
+
+// processCapture pour le devis
+const _origProcessCapture=processCapture;
+function processCapture(photo){
+  if(scanMode==='devis'){scanMode='expense';processDevisPhoto(photo);}
+  else _origProcessCapture(photo);
 }
 
 // ══ AUTO-LOGIN (persistance session) ══
