@@ -2167,50 +2167,303 @@ function saveSig(edlId){
 function genEDLPdf(edlId){
   const p=P();if(!p)return;
   const e=p.edls.find(x=>x.id===edlId);if(!e)return;
-  const hasDamage=(e.items||[]).some(it=>(it.photos||[]).length>0||(it.etat==='Dégradé'||it.etat==='Mauvais'));
-  const stateColors={'Neuf':'#00a86b','Très bon':'#00c853','Bon':'#2ecc71','Bon état':'#2ecc71','Usure normale':'#ff8c42','Correct':'#ff8c42','Dégradé':'#ff4d6d','Mauvais':'#cc0033'};
+  const SC={'Neuf':'#0a7c4a','Très bon':'#1a9e5c','Bon':'#27ae60','Bon état':'#27ae60','Usure normale':'#d67c00','Correct':'#d67c00','Dégradé':'#c0392b','Mauvais':'#922b21'};
+  const SBG={'Neuf':'#e8f8f1','Très bon':'#eaf7f0','Bon':'#eafaf1','Bon état':'#eafaf1','Usure normale':'#fef9e7','Correct':'#fef9e7','Dégradé':'#fdedec','Mauvais':'#fce4e4'};
   const typeLabel={entry:'ENTRÉE',exit:'SORTIE',intermediate:'INTERMÉDIAIRE'};
+  const typeFR={entry:'Entrée',exit:'Sortie',intermediate:'Intermédiaire'};
+  const scopeFR=e.scope==='commun'?'Parties communes':'Chambre privative';
   const rooms=[...new Set((e.items||[]).map(it=>it.room))];
-  let body=`
-    <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e0e0e0">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px">État des lieux</div>
-      <h1 style="font-size:24px;font-weight:800;color:#0d1020;letter-spacing:-.03em;margin-bottom:4px">${typeLabel[e.type]||'EDL'}</h1>
-      <div style="font-size:14px;color:#555">${e.tenantName||'Parties communes'} · ${fmtD(e.date)}</div>
-      <div style="font-size:12px;color:#888;margin-top:4px">${p.info.name} · ${p.info.address}</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
-      <div style="background:#f8f9fa;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px">Objets inspectés</div><div style="font-size:20px;font-weight:800;color:#0d1020">${(e.items||[]).length}</div></div>
-      <div style="background:#f8f9fa;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px">Score état</div><div style="font-size:20px;font-weight:800;color:#0d1020">${(()=>{const its=e.items||[];if(!its.length)return'—';const g=its.filter(i=>['Neuf','Très bon','Bon','Bon état'].includes(i.etat)).length;return Math.round(g/its.length*100)+'%';})()}</div></div>
-      <div style="background:#f8f9fa;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px">Dégradations</div><div style="font-size:20px;font-weight:800;color:${hasDamage?'#ff4d6d':'#2ecc71'}">${(e.items||[]).filter(i=>i.etat==='Dégradé'||i.etat==='Mauvais').length}</div></div>
-    </div>`;
+  const totalItems=(e.items||[]).length;
+  const goodItems=(e.items||[]).filter(i=>['Neuf','Très bon','Bon','Bon état'].includes(i.etat)).length;
+  const score=totalItems>0?Math.round(goodItems/totalItems*100):null;
+  const degraded=(e.items||[]).filter(i=>i.etat==='Dégradé'||i.etat==='Mauvais');
+  const hasDamagePhotos=(e.items||[]).some(it=>(it.photos||[]).length>0);
+  const refNum=`EDL-${e.id.toString().slice(-6)}`;
+  const today2=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
 
-  rooms.forEach(room=>{
+  // ── PAGE DE GARDE ──
+  let pg1=`
+<div class="page cover">
+  <!-- Bandeau haut -->
+  <div class="header-band">
+    <div class="header-left">
+      <div class="logo-mark">⬡</div>
+      <div>
+        <div class="logo-title">ImmoRénov</div>
+        <div class="logo-sub">Gestion immobilière</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="ref-label">Référence</div>
+      <div class="ref-num">${refNum}</div>
+    </div>
+  </div>
+
+  <!-- Titre principal -->
+  <div class="cover-title-block">
+    <div class="cover-type-badge">${typeFR[e.type]||'EDL'}</div>
+    <h1 class="cover-title">ÉTAT DES LIEUX</h1>
+    <h2 class="cover-subtitle">${typeLabel[e.type]||'—'}</h2>
+    <div class="cover-scope">${scopeFR}</div>
+  </div>
+
+  <!-- Infos principales -->
+  <div class="info-grid">
+    <div class="info-block">
+      <div class="info-label">Bien immobilier</div>
+      <div class="info-value">${p.info.name}</div>
+      <div class="info-sub">${p.info.address}</div>
+      <div class="info-sub">${p.info.type}${p.info.surface?' · '+p.info.surface+' m²':''}</div>
+    </div>
+    <div class="info-block">
+      <div class="info-label">${e.scope==='commun'?'Parties inspectées':'Colocataire concerné'}</div>
+      <div class="info-value">${e.tenantName||'Parties communes'}</div>
+      <div class="info-sub">Date : ${fmtD(e.date)}</div>
+      <div class="info-sub">Établi le : ${today2}</div>
+    </div>
+    <div class="info-block">
+      <div class="info-label">Bailleur</div>
+      <div class="info-value">${SES?.username||'—'}</div>
+      <div class="info-sub">Projet : ${SES?.projectId||'—'}</div>
+    </div>
+  </div>
+
+  <!-- KPI résumé -->
+  <div class="kpi-row">
+    <div class="kpi-box">
+      <div class="kpi-num">${totalItems}</div>
+      <div class="kpi-lbl">Éléments inspectés</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-num" style="color:${score>=80?'#0a7c4a':score>=50?'#d67c00':'#c0392b'}">${score!==null?score+'%':'—'}</div>
+      <div class="kpi-lbl">État général</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-num" style="color:${degraded.length?'#c0392b':'#0a7c4a'}">${degraded.length}</div>
+      <div class="kpi-lbl">Dégradation${degraded.length>1?'s':''}</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-num">${rooms.length}</div>
+      <div class="kpi-lbl">Pièce${rooms.length>1?'s':''}</div>
+    </div>
+  </div>
+
+  <!-- Mentions légales -->
+  <div class="legal-box">
+    <strong>Conformité légale</strong> — Ce document est établi conformément à la loi n° 89-462 du 6 juillet 1989 (art. 3-2), 
+    à la loi ALUR n° 2014-366 du 24 mars 2014 et au décret n° 2016-382 fixant les modalités d'établissement de l'état des lieux. 
+    Il constitue une annexe au contrat de bail et engage les parties signataires.
+  </div>
+
+  <!-- Barre de statut -->
+  <div class="status-bar">
+    <div class="status-dot ${e.signature?'signed':'unsigned'}"></div>
+    <span>${e.signature?'Document signé électroniquement le '+fmtD(e.signatureDate):'En attente de signature'}</span>
+  </div>
+</div>`;
+
+  // ── PAGES CONTENU par PIÈCE ──
+  let pg2='';
+  rooms.forEach((room,ri)=>{
     const its=e.items.filter(it=>it.room===room);
-    body+=`<div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;border-bottom:1px solid #e0e0e0;padding-bottom:5px;margin-bottom:10px">${room}</div>
-      ${its.map(it=>`
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #f0f0f0">
-          <div><div style="font-size:13px;font-weight:600;color:#0d1020">${it.name}</div>${it.notes?`<div style="font-size:11px;color:#666;margin-top:2px">${it.notes}</div>`:''}</div>
-          <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;background:${stateColors[it.etat]||'#888'}22;color:${stateColors[it.etat]||'#888'};flex-shrink:0;margin-left:10px">${it.etat}</span>
-        </div>
-        ${(it.photos||[]).length?`<div style="display:flex;gap:8px;padding:8px 0 4px;flex-wrap:wrap">${it.photos.map(ph=>`<img src="${ph}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:2px solid #ff4d6d">`).join('')}</div>`:''}
+    pg2+=`
+<div class="page content ${ri===0?'first-content':''}">
+  ${ri===0?`<div class="content-header">
+    <div class="content-header-left">
+      <div class="ch-title">Inventaire détaillé</div>
+      <div class="ch-sub">${e.tenantName||'Parties communes'} · ${fmtD(e.date)}</div>
+    </div>
+    <div class="ch-ref">${refNum}</div>
+  </div>`:''}
+  <div class="room-header">
+    <div class="room-icon">🏠</div>
+    <div class="room-name">${room}</div>
+    <div class="room-count">${its.length} élément${its.length>1?'s':''}</div>
+  </div>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width:40%">Élément</th>
+        <th style="width:20%">État constaté</th>
+        <th style="width:40%">Observations</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${its.map((it,idx)=>`
+        <tr class="${idx%2===0?'row-even':'row-odd'}${(it.etat==='Dégradé'||it.etat==='Mauvais')?' row-alert':''}">
+          <td>
+            <div class="item-name">${it.name}</div>
+            ${it.brand?`<div class="item-brand">${it.brand}</div>`:''}
+          </td>
+          <td>
+            <span class="state-badge" style="background:${SBG[it.etat]||'#f5f5f5'};color:${SC[it.etat]||'#555'};border:1px solid ${SC[it.etat]||'#ccc'}40">
+              ${it.etat}
+            </span>
+          </td>
+          <td class="item-notes">${it.notes||'<span style="color:#bbb">—</span>'}</td>
+        </tr>
+        ${(it.photos||[]).length?`<tr class="photo-row"><td colspan="3"><div class="photo-inline-label">📷 Photos dégâts — ${it.name}</div><div class="photo-inline-grid">${it.photos.map(ph=>`<img src="${ph}" class="photo-inline">`).join('')}</div></td></tr>`:''}
       `).join('')}
-    </div>`;
+    </tbody>
+  </table>
+</div>`;
   });
 
-  if(e.signature){
-    body+=`<div style="margin-top:24px;padding-top:16px;border-top:2px solid #e0e0e0">
-      <div style="display:flex;justify-content:space-between;align-items:flex-end">
-        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px">Signature du locataire</div><img src="${e.signature}" style="height:60px;border:1px solid #ddd;border-radius:8px;padding:4px;background:#fff"></div>
-        <div style="text-align:right"><div style="font-size:10px;color:#888">Signé le</div><div style="font-weight:700;color:#0d1020">${fmtD(e.signatureDate)}</div></div>
+  // ── PAGE SIGNATURES ──
+  let pg3=`
+<div class="page signature-page">
+  <div class="sig-header">
+    <div class="sig-title">Signatures des parties</div>
+    <div class="sig-sub">En signant ce document, les parties reconnaissent l'exactitude des constats effectués.</div>
+  </div>
+
+  <div class="sig-grid">
+    <div class="sig-block">
+      <div class="sig-role">Le Bailleur</div>
+      <div class="sig-name">${SES?.username||'—'}</div>
+      <div class="sig-date-label">Date : ${fmtD(e.date)}</div>
+      <div class="sig-zone">
+        <div class="sig-zone-label">Signature</div>
+        <div class="sig-zone-box"></div>
       </div>
-    </div>`;
-  }
+    </div>
+    <div class="sig-block">
+      <div class="sig-role">Le Locataire</div>
+      <div class="sig-name">${e.tenantName||'—'}</div>
+      <div class="sig-date-label">Date : ${fmtD(e.signatureDate||e.date)}</div>
+      <div class="sig-zone">
+        <div class="sig-zone-label">Signature</div>
+        ${e.signature
+          ?`<img src="${e.signature}" class="sig-img">`
+          :`<div class="sig-zone-box"></div>`}
+      </div>
+    </div>
+  </div>
+
+  <div class="sig-mention">
+    <strong>Lu et approuvé</strong> — Les deux parties certifient avoir procédé contradictoirement à cet état des lieux 
+    et reconnaissent la conformité du présent document avec les constats effectués lors de la visite.
+    ${e.signature?`<br><br>✅ <strong>Signature électronique enregistrée</strong> le ${fmtD(e.signatureDate)} via ImmoRénov.`:''}
+  </div>
+
+  <div class="footer-final">
+    <span>${refNum}</span>
+    <span>ImmoRénov — ${p.info.name}</span>
+    <span>Établi le ${today2}</span>
+  </div>
+</div>`;
+
+  // ── CSS COMPLET ──
+  const css=`
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',Helvetica,Arial,sans-serif;background:#e8e8e8;color:#1a1a2e;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .page{background:#fff;width:210mm;min-height:297mm;margin:0 auto 20px;padding:0;position:relative;box-shadow:0 4px 24px rgba(0,0,0,.15);page-break-after:always}
+    @media print{body{background:#fff}.page{box-shadow:none;margin:0;width:100%}}
+
+    /* ── HEADER BAND ── */
+    .header-band{background:#1a1a2e;color:#fff;padding:14px 28px;display:flex;justify-content:space-between;align-items:center}
+    .header-left{display:flex;align-items:center;gap:12px}
+    .logo-mark{font-size:22px;color:#c9a84c}
+    .logo-title{font-size:15px;font-weight:800;letter-spacing:-.02em}
+    .logo-sub{font-size:10px;color:rgba(255,255,255,.5);letter-spacing:.06em;text-transform:uppercase}
+    .header-right{text-align:right}
+    .ref-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.45);margin-bottom:2px}
+    .ref-num{font-size:13px;font-weight:700;color:#c9a84c;letter-spacing:.05em}
+
+    /* ── COVER ── */
+    .cover-title-block{padding:36px 28px 28px;border-bottom:1px solid #f0f0f0}
+    .cover-type-badge{display:inline-block;background:#c9a84c;color:#fff;font-size:10px;font-weight:800;padding:4px 12px;border-radius:99px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+    .cover-title{font-size:36px;font-weight:900;color:#1a1a2e;letter-spacing:-.03em;line-height:1;margin-bottom:4px}
+    .cover-subtitle{font-size:18px;font-weight:400;color:#555;letter-spacing:.15em;text-transform:uppercase;margin-bottom:10px}
+    .cover-scope{font-size:12px;color:#888;font-weight:500}
+
+    /* ── INFO GRID ── */
+    .info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:0;border-bottom:1px solid #f0f0f0}
+    .info-block{padding:18px 28px;border-right:1px solid #f0f0f0}
+    .info-block:last-child{border-right:none}
+    .info-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#c9a84c;margin-bottom:7px}
+    .info-value{font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:4px}
+    .info-sub{font-size:11px;color:#666;line-height:1.5}
+
+    /* ── KPI ── */
+    .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);background:#f8f8f8;border-bottom:1px solid #eee}
+    .kpi-box{padding:20px 16px;text-align:center;border-right:1px solid #eee}
+    .kpi-box:last-child{border-right:none}
+    .kpi-num{font-size:28px;font-weight:900;color:#1a1a2e;line-height:1;margin-bottom:5px}
+    .kpi-lbl{font-size:10px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+
+    /* ── LEGAL ── */
+    .legal-box{margin:20px 28px;background:#fffbf0;border:1px solid #e8d5a0;border-left:4px solid #c9a84c;border-radius:6px;padding:12px 15px;font-size:10.5px;color:#5a4a2a;line-height:1.6}
+
+    /* ── STATUS ── */
+    .status-bar{display:flex;align-items:center;gap:8px;padding:12px 28px;background:#f5f5f5;border-top:1px solid #eee;font-size:11px;color:#555;font-weight:500}
+    .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .status-dot.signed{background:#27ae60}
+    .status-dot.unsigned{background:#e67e22}
+
+    /* ── CONTENT PAGE ── */
+    .content-header{background:#1a1a2e;padding:14px 28px;display:flex;justify-content:space-between;align-items:center}
+    .ch-title{color:#fff;font-size:15px;font-weight:800}
+    .ch-sub{color:rgba(255,255,255,.55);font-size:11px;margin-top:2px}
+    .ch-ref{color:#c9a84c;font-size:12px;font-weight:700}
+    .room-header{display:flex;align-items:center;gap:10px;padding:14px 28px 10px;border-bottom:2px solid #c9a84c}
+    .room-icon{font-size:16px}
+    .room-name{font-size:16px;font-weight:800;color:#1a1a2e;letter-spacing:-.01em;flex:1}
+    .room-count{font-size:11px;color:#888;font-weight:600;background:#f0f0f0;padding:3px 10px;border-radius:99px}
+
+    /* ── TABLE ── */
+    .items-table{width:100%;border-collapse:collapse;font-size:12px}
+    .items-table thead tr{background:#1a1a2e}
+    .items-table thead th{color:rgba(255,255,255,.7);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:10px 16px;text-align:left}
+    .row-even{background:#fff}
+    .row-odd{background:#fafafa}
+    .row-alert{background:#fff5f5!important}
+    .items-table td{padding:10px 16px;border-bottom:1px solid #f0f0f0;vertical-align:top}
+    .item-name{font-size:13px;font-weight:600;color:#1a1a2e}
+    .item-brand{font-size:10px;color:#888;margin-top:2px}
+    .item-notes{font-size:11px;color:#555;line-height:1.5}
+    .state-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;white-space:nowrap}
+
+    /* ── PHOTOS ── */
+    .photo-row td{padding:8px 16px 12px;background:#fef9f0!important}
+    .photo-inline-label{font-size:10px;font-weight:700;color:#c9a84c;text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+    .photo-inline-grid{display:flex;gap:8px;flex-wrap:wrap}
+    .photo-inline{width:110px;height:110px;object-fit:cover;border-radius:8px;border:2px solid #c0392b}
+
+    /* ── SIGNATURE PAGE ── */
+    .signature-page{padding:0}
+    .sig-header{background:#1a1a2e;padding:20px 28px}
+    .sig-title{color:#fff;font-size:18px;font-weight:800}
+    .sig-sub{color:rgba(255,255,255,.5);font-size:11px;margin-top:4px}
+    .sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:32px 28px;border-bottom:1px solid #f0f0f0}
+    .sig-block{padding:0 20px}
+    .sig-block:first-child{border-right:1px solid #eee;padding-left:0}
+    .sig-role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#c9a84c;margin-bottom:6px}
+    .sig-name{font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:4px}
+    .sig-date-label{font-size:11px;color:#888;margin-bottom:20px}
+    .sig-zone-label{font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+    .sig-zone-box{width:100%;height:80px;border:1.5px dashed #ccc;border-radius:8px;background:#fafafa}
+    .sig-img{width:180px;height:80px;object-fit:contain;border:1px solid #ddd;border-radius:8px;background:#fff;padding:4px}
+    .sig-mention{padding:20px 28px;background:#fffbf0;border-top:1px solid #f0e0b0;font-size:11px;color:#5a4a2a;line-height:1.7}
+    .footer-final{display:flex;justify-content:space-between;padding:12px 28px;background:#f5f5f5;border-top:1px solid #eee;font-size:10px;color:#888;font-weight:500}
+  `;
 
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>EDL ${e.tenantName||''} ${fmtD(e.date)}</title>
-  <style>*{box-sizing:border-box}body{font-family:'Helvetica Neue',Arial,sans-serif;max-width:640px;margin:30px auto;padding:24px;color:#0d1020;font-size:13px;line-height:1.5}@media print{body{margin:0;padding:20px}}</style>
-  </head><body>${body}<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>EDL ${typeLabel[e.type]||''} — ${e.tenantName||'Parties communes'} — ${fmtD(e.date)}</title>
+<style>${css}</style>
+</head><body>
+${pg1}
+${pg2}
+${pg3}
+<script>
+window.onload=function(){
+  document.title='EDL_${(e.tenantName||'commun').replace(/\s/g,'_')}_${e.date}';
+  setTimeout(()=>window.print(),400);
+};
+<\/script>
+</body></html>`);
   w.document.close();
 }
 
