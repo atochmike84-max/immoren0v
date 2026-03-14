@@ -614,7 +614,11 @@ select option{background:var(--bg2)}
       <span style="font-size:18px">🔐</span>
       <span>Chiffrement <strong style="color:var(--gold)">AES-256-GCM</strong> — vos données sont illisibles pour Firebase</span>
     </div>
-    <div class="field"><label>Votre prénom</label><input class="inp" id="l-name" placeholder="ex: Marc" autocomplete="off"></div>
+    <div class="field">
+      <label>Votre prénom / nom</label>
+      <input class="inp" id="l-name" placeholder="ex: Marc Dupont" autocomplete="off">
+      <div style="color:var(--t4);font-size:11px;margin-top:4px">⚠ Ce nom apparaîtra dans tous vos PDF — choisissez bien</div>
+    </div>
     <div class="field">
       <label>ID du projet partagé</label>
       <input class="inp" id="l-proj" placeholder="ex: portefeuille-immo-2024" autocomplete="off" autocapitalize="none">
@@ -663,6 +667,11 @@ select option{background:var(--bg2)}
       </div>
       <button class="btn btn-sm" onclick="openPropModal()">+ Bien</button>
     </div>
+    <!-- Bloc connexions collaborateurs -->
+    <div class="card" id="pf-conn-card" style="margin-bottom:11px;display:none">
+      <div class="sl" style="margin-bottom:8px">👥 Collaborateurs</div>
+      <div id="pf-connections"></div>
+    </div>
     <div class="card" id="global-kpis" style="margin-bottom:13px"></div>
     <div class="prop-grid" id="prop-grid"></div>
   </div>
@@ -680,7 +689,6 @@ select option{background:var(--bg2)}
     </div>
     <div style="display:flex;gap:5px;align-items:center">
       <span id="d-sync" style="color:var(--green);font-size:10px">⬤ Sync</span>
-      <button class="btn-scan btn-sm" onclick="openScanner('expense')">📷</button>
       <button class="btn-g btn-sm" onclick="openPropModal(curId)" style="padding:7px 9px">✎</button>
     </div>
   </div>
@@ -918,18 +926,44 @@ function startListener(){
 function startPresence(){
   if(!window._fbOK||!SES)return;
   const{doc,setDoc,collection,getDocs}=window._fb;
-  const beat=()=>setDoc(doc(window._db,'projects',SES.projectId,'presence',SES.username),{username:SES.username,ts:Date.now()}).catch(()=>{});
+  const beat=()=>setDoc(doc(window._db,'projects',SES.projectId,'presence',SES.username),{username:SES.username,ts:Date.now(),displayName:SES.username}).catch(()=>{});
   beat();presIv=setInterval(beat,20000);
   const read=async()=>{
     try{
       const snap=await getDocs(collection(window._db,'projects',SES.projectId,'presence'));
-      const now=Date.now(),us=[];
-      snap.forEach(d=>{const x=d.data();if(now-x.ts<40000)us.push(x.username);});
-      const el=document.getElementById('online-users');if(!el)return;
-      el.innerHTML=us.map(u=>`<span style="color:${u===SES.username?'#2ecc71':'#3498db'};font-size:10px">● ${u}${u===SES.username?' (vous)':''}</span>`).join('');
+      const now=Date.now(),users=[];
+      snap.forEach(d=>{const x=d.data();users.push({...x,online:now-x.ts<40000});});
+      // Syncbar dans detail page
+      const el=document.getElementById('online-users');
+      if(el)el.innerHTML=users.filter(u=>u.online).map(u=>`<span style="color:${u.username===SES.username?'#2ecc71':'#3498db'};font-size:10px">● ${u.username}${u.username===SES.username?' (vous)':''}</span>`).join('');
+      // Dernière connexion sur portfolio
+      const pfConn=document.getElementById('pf-connections');
+      if(pfConn){
+        const others=users.filter(u=>u.username!==SES.username).sort((a,b)=>b.ts-a.ts);
+        if(others.length){
+          pfConn.innerHTML=others.map(u=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--bd2)">
+            <div style="width:8px;height:8px;border-radius:50%;background:${u.online?'var(--green)':'var(--t4)'}"></div>
+            <div style="color:var(--t1);font-size:13px;font-weight:600">${u.username}</div>
+            <div style="color:var(--t4);font-size:11px;margin-left:auto">${u.online?'En ligne':'Vu '+fmtTimeAgo(u.ts)}</div>
+          </div>`).join('');
+        } else {
+          pfConn.innerHTML='<div style="color:var(--t4);font-size:12px">Aucun autre utilisateur connecté</div>';
+        }
+      }
     }catch{}
   };
   read();onIv=setInterval(read,15000);
+}
+
+function fmtTimeAgo(ts){
+  const diff=Date.now()-ts;
+  const m=Math.floor(diff/60000);
+  const h=Math.floor(diff/3600000);
+  const d=Math.floor(diff/86400000);
+  if(m<1)return"à l\'instant";
+  if(m<60)return"il y a "+m+"min";
+  if(h<24)return"il y a "+h+"h";
+  return"il y a "+d+"j";
 }
 
 // ══ LOGIN ══
@@ -1018,6 +1052,7 @@ const NAV_GROUPS={
     {id:'notes',label:'📝 Notes'},
     {id:'gallery',label:'📸 Galerie'},
     {id:'docslocataires',label:'📁 Dossiers'},
+    {id:'settings',label:'⚙ Paramètres'},
   ]},
   ia:{label:'Assistant IA',sub:[
     {id:'ia-juridique',label:'⚖️ Juridique'},
@@ -1063,7 +1098,7 @@ function renderTab(tab){
   const r={dashboard:rDash,planning:rPlanning,works:rWorks,artisans:rArtisans,
     tenants:rTenants,rents:rRents,charges:rCharges,expenses:rExpenses,
     edl:rEDL,inventory:rInventory,budget:rBudget,notes:rNotes,
-    gallery:rGallery,docslocataires:rDocsLocataires,
+    gallery:rGallery,docslocataires:rDocsLocataires,settings:rSettings,
     'ia-juridique':rIAJuridique,'ia-anomalies':rIAAnomalies,
     'ia-rapport':rIARapport,'ia-courriers':rIACourriers,'ia-devis':rIADevis};
   if(r[tab])r[tab](el);else el.innerHTML='<div class="empty">Section en cours...</div>';
@@ -1468,6 +1503,12 @@ function openGCal(title,date,desc=''){
 // ══ PORTFOLIO ══
 function renderPortfolio(){
   const props=Object.values(STATE.properties);
+  // Afficher/cacher card connexions selon nombre de partenaires
+  const connCard=document.getElementById('pf-conn-card');
+  if(connCard){
+    const others=(STATE.partners||[]).filter(p=>p!==SES?.username);
+    connCard.style.display=others.length?'block':'none';
+  }
   if(!props.length){
     document.getElementById('global-kpis').innerHTML='<div class="empty">Ajoutez votre premier bien ci-dessous</div>';
     document.getElementById('prop-grid').innerHTML=`<button class="add-pc" onclick="openPropModal()"><div style="font-size:30px;color:var(--t4)">＋</div><div style="color:var(--t4);font-size:13px;font-weight:600">Ajouter un bien</div></button>`;
@@ -1706,7 +1747,31 @@ function rPlanning(el){
   while(c<=maxD){months.push(new Date(c));c.setMonth(c.getMonth()+1);}
 
   el.innerHTML=`
-  <h3 class="section-h">Planning Gantt</h3>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 class="section-h" style="margin:0">Planning</h3>
+    <button class="btn btn-sm" onclick="openEventModal()">+ Rendez-vous</button>
+  </div>
+
+  <!-- RDV / Événements -->
+  ${p.events&&p.events.length?`<div class="card" style="margin-bottom:12px">
+    <div class="sl" style="margin-bottom:9px">Rendez-vous & Événements</div>
+    ${[...p.events].sort((a,b)=>a.date.localeCompare(b.date)).map(ev=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd2)">
+        <div style="width:38px;height:38px;border-radius:10px;background:${ev.color||'var(--blue2)'};border:1px solid ${ev.color||'var(--blue)'}44;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">${ev.icon||'📅'}</div>
+        <div style="flex:1">
+          <div style="color:var(--t1);font-weight:600;font-size:13px">${ev.title}</div>
+          <div style="color:var(--t4);font-size:11px">${fmtD(ev.date)}${ev.time?' à '+ev.time:''}${ev.person?' · '+ev.person:''}</div>
+          ${ev.notes?'<div style="color:var(--t3);font-size:11px;margin-top:2px">'+ev.notes+'</div>':''}
+        </div>
+        <div style="display:flex;gap:5px">
+          ${ev.date?`<button class="btn-g btn-xs" onclick="openGCal('${ev.title}','${ev.date}','${ev.notes||''}')">📅</button>`:''}
+          <button class="btn-d btn-xs" onclick="delEvent(${ev.id})">✕</button>
+        </div>
+      </div>`).join('')}
+  </div>`:
+  '<div class="card" style="margin-bottom:12px;text-align:center;padding:20px"><div style="font-size:28px;margin-bottom:8px">📅</div><div style="color:var(--t4);font-size:13px">Aucun rendez-vous</div><button class="btn btn-sm" style="margin-top:12px" onclick="openEventModal()">+ Ajouter un RDV</button></div>'}
+
+  ${phases.length?`<h3 class="section-h">Planning Gantt</h3>`:''}
   <div class="card">
     <div class="gw">
       <div class="gmonths">${months.map(m=>{
@@ -1922,8 +1987,9 @@ function rTenants(el){
             <div style="color:var(--t4);font-size:12px">Scanner les documents<br>du dossier locataire</div>
           </div>`}
       </div>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm" style="flex:1" onclick="genQuittance(${t.id})">📄 Quittance</button>
+        ${t.driveLink?`<button class="btn-g btn-sm" style="color:var(--blue)" onclick="window.open('${t.driveLink}','_blank')">☁ Drive</button>`:''}
         <button class="btn-g btn-sm" onclick="openTenantModal(${t.id})">✎</button>
         ${t.leaseEnd?`<button class="btn-g btn-sm" style="padding:7px 8px" onclick="openGCal('Fin de bail ${t.name}','${t.leaseEnd}','Renouvellement ou départ')">📅</button>`:''}
         <button class="btn-d btn-sm" style="padding:7px 9px" onclick="delItem('tenants',${t.id})">✕</button>
@@ -1949,13 +2015,18 @@ function openTenantModal(id){
       </div>
       <div class="field" style="margin-bottom:0"><label>Email</label><input class="inp" id="f-garant-email" type="email" value="${f.garantEmail||''}"></div>
     </div>
+    <div class="field">
+      <label>🔗 Lien Google Drive (dossier locataire)</label>
+      <input class="inp" id="f-drive" type="url" value="${f.driveLink||''}" placeholder="https://drive.google.com/drive/folders/...">
+      <div style="color:var(--t4);font-size:11px;margin-top:4px">Collez le lien de partage du dossier Drive de ce locataire</div>
+    </div>
     <div class="field"><label>Notes</label><textarea class="inp" id="f-notes">${f.notes||''}</textarea></div>
     <button class="btn btn-full" onclick="saveTenant(${id||0})">Enregistrer</button>`);
   openMod();
 }
 function saveTenant(id){
   const p=P();if(!p)return;ensure(p);
-  const item={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),leaseStart:document.getElementById('f-ls').value,leaseEnd:document.getElementById('f-le').value,rent:parseFloat(document.getElementById('f-rent').value)||0,deposit:parseFloat(document.getElementById('f-dep').value)||0,status:document.getElementById('f-st').value,notes:document.getElementById('f-notes').value.trim(),garantName:document.getElementById('f-garant-name')?.value.trim()||'',garantPhone:document.getElementById('f-garant-phone')?.value.trim()||'',garantEmail:document.getElementById('f-garant-email')?.value.trim()||''};
+  const item={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),leaseStart:document.getElementById('f-ls').value,leaseEnd:document.getElementById('f-le').value,rent:parseFloat(document.getElementById('f-rent').value)||0,deposit:parseFloat(document.getElementById('f-dep').value)||0,status:document.getElementById('f-st').value,notes:document.getElementById('f-notes').value.trim(),garantName:document.getElementById('f-garant-name')?.value.trim()||'',garantPhone:document.getElementById('f-garant-phone')?.value.trim()||'',garantEmail:document.getElementById('f-garant-email')?.value.trim()||'',driveLink:document.getElementById('f-drive')?.value.trim()||''};
   if(!item.name){alert('Nom requis.');return;}
   if(id){const old=p.tenants.find(t=>t.id===id);p.tenants=p.tenants.map(t=>t.id===id?{...item,id,docs:old?.docs||[]}:t);addLog(`a modifié "${item.name}"`);}
   else{p.tenants.push({...item,id:Date.now(),docs:[]});addLog(`a ajouté locataire "${item.name}"`);}
@@ -2759,13 +2830,12 @@ function genEDLPdf(edlId){
   // ── PAGE DE GARDE ──
   let pg1=`
 <div class="page cover">
-  <!-- Bandeau haut -->
+  <!-- Bandeau haut simplifié sans branding -->
   <div class="header-band">
     <div class="header-left">
-      <div class="logo-mark">⬡</div>
       <div>
-        <div class="logo-title">ImmoRénov</div>
-        <div class="logo-sub">Gestion immobilière</div>
+        <div class="logo-title">ÉTAT DES LIEUX</div>
+        <div class="logo-sub">${p.info.name} · ${p.info.address}</div>
       </div>
     </div>
     <div class="header-right">
@@ -2799,7 +2869,7 @@ function genEDLPdf(edlId){
     <div class="info-block">
       <div class="info-label">Bailleur</div>
       <div class="info-value">${SES?.username||'—'}</div>
-      <div class="info-sub">Projet : ${SES?.projectId||'—'}</div>
+
     </div>
   </div>
 
@@ -2918,12 +2988,12 @@ function genEDLPdf(edlId){
   <div class="sig-mention">
     <strong>Lu et approuvé</strong> — Les deux parties certifient avoir procédé contradictoirement à cet état des lieux 
     et reconnaissent la conformité du présent document avec les constats effectués lors de la visite.
-    ${e.signature?`<br><br>✅ <strong>Signature électronique enregistrée</strong> le ${fmtD(e.signatureDate)} via ImmoRénov.`:''}
+    ${e.signature?`<br><br>✅ <strong>Signature électronique enregistrée</strong> le ${fmtD(e.signatureDate)}.`:''}
   </div>
 
   <div class="footer-final">
     <span>${refNum}</span>
-    <span>ImmoRénov — ${p.info.name}</span>
+    <span>${p.info.name}</span>
     <span>Établi le ${today2}</span>
   </div>
 </div>`;
@@ -3885,6 +3955,49 @@ async function genRapport(){
   const txt=result.text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
   resEl.innerHTML='<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden"><div style="background:linear-gradient(135deg,#1a1a2e,#252850);padding:14px 18px"><div style="color:#fff;font-weight:800;font-size:15px">Rapport '+fmtM(month)+'</div><div style="color:rgba(255,255,255,.5);font-size:11px">'+p.info.name+'</div></div><div style="padding:18px;font-size:13px;color:var(--t2);line-height:1.8">'+txt+'</div><div style="padding:12px 18px;background:var(--bg3);border-top:1px solid var(--bd);display:flex;gap:9px"><button class="btn-g btn-sm" style="flex:1" onclick="printRapport()">Imprimer</button><button class="btn-g btn-sm" style="flex:1" onclick="copyToClipboard(document.querySelector(chr39+chr39+chr39+\'#rapport-result\'+chr39+chr39+chr39).innerText)">Copier</button></div></div>';
 }
+
+function printRapport(){
+  const p=P();if(!p)return;
+  const resEl=document.getElementById('rapport-result');if(!resEl)return;
+  const month=document.getElementById('rapport-month')?.value||thisMonth();
+  const contentEl=resEl.querySelector('.rapport-content');
+  const txt=contentEl?contentEl.innerHTML:(resEl.innerText||'');
+  const today2=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  const chAnn=p.charges.reduce((s,c)=>{const m={monthly:12,quarterly:4,annual:1,once:0};return s+c.amount*(m[c.frequency]||0);},0);
+  const tRentsM=p.rents.filter(r=>r.month===month);
+  const tExpM=p.expenses.filter(e=>e.date&&e.date.slice(0,7)===month);
+  const tLoyers=tRentsM.reduce((s,r)=>s+r.amount,0);
+  const tExp=tExpM.reduce((s,e)=>s+e.amount,0);
+  const cashflow=p.info.targetRent-chAnn/12;
+  const grand=p.info.purchasePrice+(p.phases||[]).reduce((s,ph)=>s+ph.budget,0);
+  const roiN=grand>0?((p.info.targetRent*12-chAnn)/grand*100).toFixed(2):'—';
+  const kpiHtml='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">'+
+    [['Loyers encaissés',fmt(tLoyers),'#27ae60'],['Dépenses du mois',fmt(tExp),'#e74c3c'],['Cashflow net',fmt(cashflow),cashflow>=0?'#27ae60':'#e74c3c'],['Rendement net',roiN+'%','#d4a853']].map(function(x){
+      return '<div style="background:#f8f9fa;border-radius:10px;padding:12px;text-align:center;border-top:3px solid '+x[2]+'"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:5px">'+x[0]+'</div><div style="font-size:18px;font-weight:900;color:'+x[2]+'">'+x[1]+'</div></div>';
+    }).join('')+'</div>';
+  const loyers_detail=tRentsM.length?tRentsM.map(function(r){
+    var t=p.tenants.find(function(x){return x.id===r.tenantId;});
+    return '<tr><td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">'+(t?t.name:'?')+'</td><td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">'+fmtM(r.month)+'</td><td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700">'+fmt(r.amount)+'</td><td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:center"><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+(r.paid?'#e8f8f1':'#fff0f3')+';color:'+(r.paid?'#0a7c4a':'#c0392b')+'">'+(r.paid?'Payé':'Impayé')+'</span></td></tr>';
+  }).join(''):'<tr><td colspan="4" style="padding:12px;text-align:center;color:#888">Aucun loyer ce mois</td></tr>';
+  var refNum='RPT-'+month.replace('-','')+(Math.floor(Math.random()*9000)+1000);
+  var html='<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport '+fmtM(month)+' — '+p.info.name+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Helvetica,Arial,sans-serif;background:#f0f2f8;color:#1a1a2e;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{background:#fff;max-width:800px;margin:0 auto}@media print{body{background:#fff}.page{max-width:100%}}.hdr{background:#1a1a2e;padding:28px 32px;color:#fff}.hdr-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}.rpt-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.5);margin-bottom:5px}.rpt-month{font-size:26px;font-weight:900}.rpt-bien{font-size:12px;color:rgba(255,255,255,.6);margin-top:3px}.ref-box{text-align:right}.ref-lbl{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em}.ref-num{font-size:13px;font-weight:700;color:#d4a853}.hdr-meta{display:flex;gap:20px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}.meta-i{font-size:10px;color:rgba(255,255,255,.5)}.meta-v{font-size:13px;font-weight:700;color:#fff;margin-top:2px}.content{padding:28px 32px}.section{margin-bottom:24px}.stitle{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;border-bottom:2px solid #1a1a2e;padding-bottom:5px;margin-bottom:14px}.ai-txt{font-size:13px;line-height:1.8;color:#2a2f45}.ai-txt strong{color:#1a1a2e}.tbl{width:100%;border-collapse:collapse;font-size:12px}.tbl thead tr{background:#1a1a2e;color:#fff}.tbl thead th{padding:9px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}.footer{background:#f8f9fa;padding:14px 32px;border-top:1px solid #e0e0e0;display:flex;justify-content:space-between;font-size:10px;color:#888}</style>'
+    +'</head><body><div class="page">'
+    +'<div class="hdr"><div class="hdr-top"><div><div class="rpt-lbl">Rapport mensuel</div><div class="rpt-month">'+fmtM(month)+'</div><div class="rpt-bien">'+p.info.name+' · '+p.info.address+'</div></div>'
+    +'<div class="ref-box"><div class="ref-lbl">Référence</div><div class="ref-num">'+refNum+'</div></div></div>'
+    +'<div class="hdr-meta"><div class="meta-i">Bailleur<div class="meta-v">'+(SES?SES.username:'—')+'</div></div><div class="meta-i">Établi le<div class="meta-v">'+today2+'</div></div><div class="meta-i">Locataires<div class="meta-v">'+p.tenants.filter(function(t){return t.status==='active';}).length+'</div></div><div class="meta-i">DPE<div class="meta-v">'+(p.info.dpe||'—')+'</div></div></div></div>'
+    +'<div class="content">'
+    +'<div class="section"><div class="stitle">Indicateurs clés</div>'+kpiHtml+'</div>'
+    +'<div class="section"><div class="stitle">Loyers du mois</div><table class="tbl"><thead><tr><th>Locataire</th><th>Mois</th><th>Montant</th><th>Statut</th></tr></thead><tbody>'+loyers_detail+'</tbody></table></div>'
+    +'<div class="section"><div class="stitle">Analyse et recommandations</div><div class="ai-txt">'+txt+'</div></div>'
+    +'</div>'
+    +'<div class="footer"><span>Rapport généré le '+today2+'</span><span>'+refNum+'</span></div>'
+    +'</div><scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},500);}<\/scr'+'ipt></body></html>';
+  var w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
 // 4. 📝 RÉDACTION AUTOMATIQUE DE COURRIERS
 // ══════════════════════════════════════════════
 const COURRIER_TYPES=[
@@ -4141,6 +4254,132 @@ function copyToClipboard(text){
 
 // processCapture pour le devis
 
+
+// ══ ÉVÉNEMENTS / RDV PLANNING ══
+function openEventModal(id){
+  const p=P();if(!p)return;ensure(p);
+  if(!p.events)p.events=[];
+  const ev=id?p.events.find(x=>x.id===id):null;
+  const f=ev||{title:'',date:today(),time:'',person:'',notes:'',icon:'📅',color:'var(--blue2)'};
+  const icons=['📅','🔧','👤','📋','🏗️','⚖️','🔑','📞','🏦','📝'];
+  setMod(id?'Modifier le rendez-vous':'Nouveau rendez-vous',`
+    <div class="field"><label>Titre</label><input class="inp" id="ev-title" value="${f.title}" placeholder="ex: Visite appartement, Rendez-vous plombier..."></div>
+    <div class="g2">
+      <div class="field"><label>Date</label><input class="inp" id="ev-date" type="date" value="${f.date}"></div>
+      <div class="field"><label>Heure (optionnel)</label><input class="inp" id="ev-time" type="time" value="${f.time||''}"></div>
+    </div>
+    <div class="field"><label>Personne concernée</label><input class="inp" id="ev-person" value="${f.person||''}" placeholder="ex: Marc Dupont, Plombier Durand..."></div>
+    <div class="field"><label>Icône</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${icons.map(ic=>`<button onclick="document.getElementById('ev-icon').value='${ic}';this.parentNode.querySelectorAll('button').forEach(b=>b.style.background='var(--bg3)');this.style.background='var(--gold3)';this.style.borderColor='var(--gold)'" style="font-size:20px;width:38px;height:38px;border:1.5px solid ${f.icon===ic?'var(--gold)':'var(--bd)'};border-radius:9px;background:${f.icon===ic?'var(--gold3)':'var(--bg3)'};cursor:pointer">${ic}</button>`).join('')}
+      </div>
+      <input type="hidden" id="ev-icon" value="${f.icon||'📅'}">
+    </div>
+    <div class="field"><label>Notes</label><textarea class="notes-area" id="ev-notes" style="min-height:56px">${f.notes||''}</textarea></div>
+    <button class="btn btn-full" onclick="saveEvent(${id||0})">Enregistrer</button>`);
+  openMod();
+}
+function saveEvent(id){
+  const p=P();if(!p)return;ensure(p);
+  if(!p.events)p.events=[];
+  const title=document.getElementById('ev-title').value.trim();
+  if(!title){toast('Titre requis','err');return;}
+  const item={title,date:document.getElementById('ev-date').value,time:document.getElementById('ev-time').value||'',person:document.getElementById('ev-person').value.trim(),notes:document.getElementById('ev-notes').value.trim(),icon:document.getElementById('ev-icon').value||'📅'};
+  if(id){p.events=p.events.map(e=>e.id===id?{...item,id}:e);}
+  else{p.events.push({...item,id:Date.now()});addLog('a ajouté un RDV : '+title);}
+  closeMod();renderTab('planning');scheduleSave();toast('Rendez-vous enregistré ✓','ok');
+}
+function delEvent(id){
+  const p=P();if(!p)return;
+  if(!confirm('Supprimer ce rendez-vous ?'))return;
+  p.events=p.events.filter(e=>e.id!==id);
+  renderTab('planning');scheduleSave();toast('Supprimé');
+}
+
+// ══ PARAMÈTRES ══
+function rSettings(el){
+  el.innerHTML=`
+  <h3 class="section-h">⚙ Paramètres</h3>
+
+  <!-- Identité -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="sl" style="margin-bottom:10px">👤 Votre identité</div>
+    <div style="background:var(--orange2);border:1px solid rgba(255,140,66,.3);border-radius:10px;padding:11px 13px;margin-bottom:13px;font-size:12px;color:var(--orange);line-height:1.6">
+      ⚠ Votre nom apparaît dans tous les PDF (quittances, EDL, courriers). Modifiez-le avec soin.
+    </div>
+    <div class="field">
+      <label>Prénom / Nom affiché</label>
+      <input class="inp" id="set-name" value="${SES?.username||''}" placeholder="Prénom Nom">
+    </div>
+    <button class="btn btn-full" onclick="saveSettingsName()">Mettre à jour le nom</button>
+  </div>
+
+  <!-- Clé API IA -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="sl" style="margin-bottom:10px">🤖 Intelligence Artificielle</div>
+    <div class="field">
+      <label>Clé API Anthropic</label>
+      <div class="pw-w">
+        <input class="inp" id="set-api-key" type="password" value="${ANTHROPIC_KEY||''}" placeholder="sk-ant-api03-...">
+        <button class="eye" onclick="const i=document.getElementById('set-api-key');i.type=i.type==='password'?'text':'password'">👁</button>
+      </div>
+      <div style="color:var(--t4);font-size:11px;margin-top:4px">Trouvez votre clé sur console.anthropic.com → API Keys</div>
+    </div>
+    <button class="btn btn-full" onclick="saveApiKey(document.getElementById('set-api-key').value)">Enregistrer la clé</button>
+  </div>
+
+  <!-- Thème -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="sl" style="margin-bottom:10px">🎨 Affichage</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-g" style="flex:1;padding:12px" onclick="if(isDark)toggleTheme()">☀️ Mode clair</button>
+      <button class="btn-g" style="flex:1;padding:12px" onclick="if(!isDark)toggleTheme()">🌙 Mode sombre</button>
+    </div>
+  </div>
+
+  <!-- Infos projet -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="sl" style="margin-bottom:10px">ℹ️ Informations projet</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd2)">
+        <span style="color:var(--t3);font-size:13px">ID projet</span>
+        <span style="color:var(--t1);font-weight:600;font-size:13px">${SES?.projectId||'—'}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd2)">
+        <span style="color:var(--t3);font-size:13px">Connecté en tant que</span>
+        <span style="color:var(--gold);font-weight:600;font-size:13px">${SES?.username||'—'}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0">
+        <span style="color:var(--t3);font-size:13px">Version</span>
+        <span style="color:var(--t1);font-size:13px">ImmoRénov V7</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Déconnexion -->
+  <button class="btn-d" style="width:100%;padding:13px;font-size:14px;font-weight:700" onclick="logout()">Se déconnecter</button>`;
+}
+function saveSettingsName(){
+  const name=document.getElementById('set-name')?.value.trim();
+  if(!name){toast('Nom requis','err');return;}
+  if(!SES){return;}
+  SES.username=name;
+  // Mettre à jour l'affichage
+  const pfUser=document.getElementById('pf-user');
+  if(pfUser)pfUser.textContent='Connecté : '+name;
+  // Sauvegarder dans la session locale
+  try{
+    const raw=localStorage.getItem('ir-session');
+    if(raw){const s=JSON.parse(raw);s.name=name;localStorage.setItem('ir-session',JSON.stringify(s));}
+  }catch{}
+  // Mettre à jour dans STATE.partners
+  if(STATE.partners){
+    STATE.partners=STATE.partners.map(p=>p===SES.username?name:p);
+    if(!STATE.partners.includes(name))STATE.partners.push(name);
+  }
+  scheduleSave();
+  toast('Nom mis à jour ✓','ok');
+}
 
 // ══ AUTO-LOGIN (persistance session) ══
 (async()=>{
