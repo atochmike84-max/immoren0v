@@ -2628,17 +2628,33 @@ function switchEDLView(id,btn){
   if(btn){btn.style.border='1.5px solid var(--gold)';btn.style.background='var(--gold3)';btn.style.color='var(--gold)';}
 }
 
+function toggleRoomSel(btn, room) {
+  const isOn = btn.style.borderColor.includes('var(--gold)') || btn.style.border.includes('var(--gold)');
+  if (isOn) {
+    btn.style.border = '1px solid var(--bd)';
+    btn.style.background = 'var(--bg3)';
+    btn.style.color = 'var(--t3)';
+  } else {
+    btn.style.border = '1.5px solid var(--gold)';
+    btn.style.background = 'var(--gold3)';
+    btn.style.color = 'var(--gold)';
+  }
+}
+
 function openNewEDL(scope){
   const p=P();if(!p)return;ensure(p);
   const isCommun=scope==='commun';
   const tenantId=(!isCommun&&scope)?scope:null;
   const tenant=tenantId?p.tenants.find(t=>t.id===tenantId):null;
-  // Récupérer les pièces selon scope
-  const allRooms=[...new Set(p.inventory.map(it=>it.room).filter(Boolean))];
-  const COMMON=['Salon','Séjour','Cuisine','Salle de bain','WC','Entrée','Couloir','Buanderie','Autre'];
-  const privateRooms=allRooms.filter(r=>!COMMON.includes(r));
-  const commonRooms=allRooms.filter(r=>COMMON.includes(r));
-  const defaultRooms=isCommun?commonRooms:privateRooms;
+  // Pièces fixes du logement (toujours affichées)
+  const FIXED_ROOMS=["Hall d'entrée",'Séjour','Cuisine','Chambre n°1 (16,25 m²)','Chambre n°2 (10,92 m²)','Salle de bain','WC'];
+  const COMMON_ROOMS=["Hall d'entrée",'Séjour','Cuisine','Salle de bain','WC'];
+  const PRIVATE_ROOMS=['Chambre n°1 (16,25 m²)','Chambre n°2 (10,92 m²)'];
+  // Pièces inventaire supplémentaires
+  const invRooms=[...new Set(p.inventory.map(it=>it.room).filter(Boolean))].filter(r=>!FIXED_ROOMS.includes(r));
+  const allRooms=[...FIXED_ROOMS,...invRooms];
+  // Pré-sélection selon scope
+  const defaultRooms=isCommun?COMMON_ROOMS:(tenantId?['Chambre n°1 (16,25 m²)']:FIXED_ROOMS);
   // EDL d'entrée existant pour comparaison
   const entryEDLs=p.edls.filter(e=>e.type==='entry'&&(isCommun?e.scope==='commun':e.tenantId===tenantId));
   setMod('Nouvel état des lieux',`
@@ -2660,8 +2676,7 @@ function openNewEDL(scope){
       </select></div>`:'<input type="hidden" id="f-compare" value="">'}
     <div class="field"><label>Pièces à inspecter</label>
       <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px" id="rooms-list">
-        ${(defaultRooms.length?defaultRooms:allRooms).map(r=>`<button data-room="${r}" onclick="toggleRoomSel(this,'${r}')" style="border:1.5px solid var(--gold);background:var(--gold3);color:var(--gold);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
-        ${(defaultRooms.length?allRooms.filter(r=>!defaultRooms.includes(r)):[]).map(r=>`<button data-room="${r}" onclick="toggleRoomSel(this,'${r}')" style="border:1px solid var(--bd);background:var(--bg3);color:var(--t3);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
+        ${allRooms.map(r=>{const sel=defaultRooms.includes(r);return`<button data-room="${r}" onclick="toggleRoomSel(this,'${r}')" style="border:${sel?'1.5px solid var(--gold)':'1px solid var(--bd)'};background:${sel?'var(--gold3)':'var(--bg3)'};color:${sel?'var(--gold)':'var(--t3)'};border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`;}).join('')}
       </div>
       ${!allRooms.length?`<div style="color:var(--orange);font-size:12px;padding:8px;background:var(--orange2);border-radius:8px">⚠ Aucun article dans l'inventaire Mobilier. Ajoutez d'abord vos meubles.</div>`:''}
     </div>
@@ -3169,13 +3184,20 @@ window.onload=function(){
 
 // ══ EDL STRUCTURE ══
 const EDLS_PIECES = [
-  {id:'hall',     icon:'🚪', name:"Hall d'entrée",   fixe:['Sol','Murs / Peinture','Plafond','Porte entrée + serrure','Interrupteur / Prise','Luminaire','Placard / Porte-manteau']},
-  {id:'sejour',   icon:'🛋', name:'Séjour',            fixe:['Sol','Murs / Peinture','Plafond','Fenêtre / Vitrage','Volets / Store','Porte intérieure','Interrupteurs / Prises','Luminaire']},
-  {id:'cuisine',  icon:'🍳', name:'Cuisine',            fixe:['Sol','Murs / Crédence','Plafond','Fenêtre / Vitrage','Volets','Évier + Robinetterie','Plan de travail','Plaques cuisson','Four / Micro-ondes','Réfrigérateur','Hotte','Meubles bas / hauts','Interrupteurs / Prises','Luminaire']},
-  {id:'ch1',      icon:'🛏', name:'Chambre n°1 (10,92 m²)', fixe:['Sol','Murs / Peinture','Plafond','Fenêtre / Vitrage','Volets / Rideau','Porte + serrure','Interrupteurs / Prises','Luminaire']},
-  {id:'ch2',      icon:'🛏', name:'Chambre n°2 (16,25 m²)', fixe:['Sol','Murs / Peinture','Plafond','Fenêtre / Vitrage','Volets / Rideau','Porte + serrure','Interrupteurs / Prises','Luminaire']},
-  {id:'sdb',      icon:'🚿', name:'Salle de bain',     fixe:['Sol','Murs / Faïence','Plafond','Fenêtre / Aération VMC','Douche / Baignoire','Robinetterie douche','Lavabo + Robinetterie','Miroir','Meuble SDB','Porte-serviette','Interrupteur / Prise rasoir','Luminaire','Chauffe-eau']},
-  {id:'wc',       icon:'🚽', name:'WC séparé',          fixe:['Sol','Murs / Peinture','Plafond','Porte + verrou','Cuvette + Abattant','Chasse d\'eau','Lave-mains / Robinetterie','Aération / VMC','Interrupteur / Luminaire']},
+  {id:'hall',    icon:'🚪', name:"Hall d'entrée",
+   fixe:['Sol (nature / état)','Murs / Peinture','Plafond','Porte d\'entrée','Serrure / Verrou','Interrupteur / Prise','Luminaire / Plafonnier','Placard / Rangement','Porte-manteau']},
+  {id:'sejour',  icon:'🛋', name:'Séjour',
+   fixe:['Sol (nature / état)','Murs / Peinture','Plafond','Fenêtres / Vitrage','Volets / Store','Portes intérieures','Interrupteurs / Prises','Luminaire / Plafonnier','Canapé','Table basse','Télévision / Support TV','Étagères / Meubles']},
+  {id:'cuisine', icon:'🍳', name:'Cuisine',
+   fixe:['Sol (nature / état)','Murs / Faïence / Crédence','Plafond','Fenêtre / Vitrage','Volets / Store','Plaques de cuisson','Four / Micro-ondes','Réfrigérateur','Lave-vaisselle','Hotte aspirante','Évier / Robinetterie','Meuble bas / Placard','Meuble haut / Placard','Plan de travail','Interrupteurs / Prises','Luminaire / Plafonnier','Ustensiles / Vaisselle']},
+  {id:'ch1',     icon:'🛏', name:'Chambre n°1 (16,25 m²) – Lot privatif',
+   fixe:['Sol (nature / état)','Murs / Peinture','Plafond','Fenêtre / Vitrage','Volets / Store / Rideau','Porte + serrure','Interrupteurs / Prises','Luminaire / Plafonnier','Lit / Sommier / Matelas','Armoire / Penderie','Bureau','Chaise / Siège','Rangements / Étagères','Occultation (volets/rideaux)','Autres meubles']},
+  {id:'ch2',     icon:'🛏', name:'Chambre n°2 (10,92 m²) – Partie commune',
+   fixe:['Sol (nature / état)','Murs / Peinture','Plafond','Fenêtre / Vitrage','Volets / Store / Rideau','Porte + serrure','Interrupteurs / Prises','Luminaire / Plafonnier','Lit / Sommier / Matelas','Armoire / Penderie','Bureau / Chaise','Autres meubles']},
+  {id:'sdb',     icon:'🚿', name:'Salle de bain',
+   fixe:['Sol (nature / état)','Murs / Faïence','Plafond','Fenêtre / VMC / Aération','Douche / Baignoire','Robinetterie douche / bain','Lavabo / Vasque','Robinetterie lavabo','Miroir','Meuble salle de bain','Porte-serviette','Interrupteur / Prise rasoir','Luminaire','Chauffe-eau / Ballon']},
+  {id:'wc',      icon:'🚽', name:'WC séparé',
+   fixe:['Sol (nature / état)','Murs / Peinture','Plafond','Porte + serrure / verrou','Cuvette / Abattant','Chasse d\'eau / Réservoir','Robinetterie / Lave-mains','Aération / VMC','Interrupteur / Luminaire']},
 ];
 
 const EDLS_ETATS = [
@@ -3190,9 +3212,11 @@ const EDLS_ROOM_MAP = {
   'Salon':'sejour','Séjour':'sejour',
   'Cuisine':'cuisine',
   'Chambre 1':'ch1','Chambre 2':'ch2',
+  'Chambre n°1 (16,25 m²)':'ch1','Chambre n°1':'ch1',
+  'Chambre n°2 (10,92 m²)':'ch2','Chambre n°2':'ch2',
   'Salle de bain':'sdb','SDB':'sdb',
-  'WC':'wc',
-  'Entrée':'hall','Hall':'hall',
+  'WC':'wc','WC séparé':'wc',
+  'Entrée':'hall','Hall':'hall',"Hall d'entrée":'hall',
 };
 
 function rEDLStructure(el) {
