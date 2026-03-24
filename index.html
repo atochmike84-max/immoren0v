@@ -599,6 +599,34 @@ select option{background:var(--bg2)}
   .prop-grid{grid-template-columns:1fr}
   .g2{grid-template-columns:1fr}
 }
+
+/* ── EDL STRUCTURE ── */
+.edls-room-hdr{background:var(--bg3);border:1px solid var(--bd);border-radius:12px 12px 0 0;padding:11px 14px;display:flex;align-items:center;gap:9px;margin-top:14px}
+.edls-room-hdr .rh-icon{font-size:16px}
+.edls-room-hdr .rh-name{font-weight:700;color:var(--t1);font-size:13px;flex:1}
+.edls-room-hdr .rh-count{font-size:10px;color:var(--t4);background:var(--bg4);padding:2px 8px;border-radius:99px;font-weight:600}
+.edls-table{width:100%;border-collapse:collapse;margin-bottom:2px}
+.edls-table th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:7px 10px;border-bottom:1px solid var(--bd);color:var(--t4)}
+.edls-table th:first-child{text-align:left}
+.edls-table th:not(:first-child){text-align:center;width:28%}
+.edls-table td{padding:7px 8px;border-bottom:1px solid var(--bd2);font-size:12px;vertical-align:top}
+.edls-table td:first-child{color:var(--t1);font-weight:600;font-size:12px}
+.edls-table tr:last-child td{border-bottom:none}
+.edls-table tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.edls-table tr.is-fixed td:first-child{color:var(--t3);font-weight:500}
+.edls-table tr.is-inv td:first-child{color:var(--gold);font-weight:700}
+.edls-sel{display:flex;gap:3px;justify-content:center;flex-wrap:wrap}
+.edls-sel button{border:1.5px solid var(--bd);background:var(--bg);color:var(--t4);border-radius:6px;padding:3px 6px;font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .12s;white-space:nowrap}
+.edls-sel button.on-tbe{border-color:var(--teal);background:var(--teal2);color:var(--teal)}
+.edls-sel button.on-be{border-color:var(--green);background:var(--green2);color:var(--green)}
+.edls-sel button.on-eu{border-color:var(--orange);background:var(--orange2);color:var(--orange)}
+.edls-sel button.on-mr{border-color:var(--red);background:var(--red2);color:var(--red)}
+.edls-note{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:4px 7px;color:var(--t1);font-size:11px;font-family:inherit;outline:none;resize:none;min-height:30px}
+.edls-note:focus{border-color:var(--gold)}
+.edls-wrap{border:1px solid var(--bd);border-radius:0 0 12px 12px;overflow:hidden;margin-bottom:2px}
+.edls-col-e{border-left:2px solid rgba(0,208,132,.25)}
+.edls-col-s{border-left:2px solid rgba(255,140,66,.25)}
+
 </style>
 </head>
 <body>
@@ -830,7 +858,7 @@ const today=()=>new Date().toISOString().slice(0,10);
 const thisMonth=()=>new Date().toISOString().slice(0,7);
 function ensure(p){
   if(!p.tenants)p.tenants=[];if(!p.rents)p.rents=[];if(!p.charges)p.charges=[];
-  if(!p.expenses)p.expenses=[];if(!p.edls)p.edls=[];if(!p.inventory)p.inventory=[];
+  if(!p.expenses)p.expenses=[];if(!p.edls)p.edls=[];if(!p.edlsData)p.edlsData={};if(!p.inventory)p.inventory=[];
   if(!p.events)p.events=[];if(!p.activityLog)p.activityLog=[];if(!p.materials)p.materials=[];if(!p.artisans)p.artisans=[];
   p.tenants.forEach(t=>{if(!t.docs)t.docs=[];});
   p.phases.forEach(ph=>{if(!ph.photos)ph.photos=[];});
@@ -1114,7 +1142,7 @@ function renderTab(tab){
   const el=document.getElementById('tab-ct');if(!el)return;
   const r={dashboard:rDash,planning:rPlanning,works:rWorks,artisans:rArtisans,
     tenants:rTenants,rents:rRents,charges:rCharges,expenses:rExpenses,
-    edl:rEDL,inventory:rInventory,budget:rBudget,notes:rNotes,
+    edl:rEDL,edlstructure:rEDLStructure,inventory:rInventory,budget:rBudget,notes:rNotes,
     gallery:rGallery,docslocataires:rDocsLocataires,settings:rSettings,
     'ia-juridique':rIAJuridique,'ia-anomalies':rIAAnomalies,
     'ia-rapport':rIARapport,'ia-courriers':rIACourriers,'ia-devis':rIADevis};
@@ -2506,6 +2534,7 @@ function rEDL(el){
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <h3 class="section-h" style="margin:0">État des lieux</h3>
     <button class="btn btn-sm" onclick="openNewEDL()">+ Nouvel EDL</button>
+    <button class="btn-g btn-sm" onclick="goTab('edlstructure')">📋 EDL Structuré</button>
   </div>
 
   <!-- Tabs: Commun / Colocataires / Galerie -->
@@ -2854,7 +2883,7 @@ function genEDLPdf(edlId){
 
   // ── PAGE DE GARDE ──
   let pg1=`
-<div class="page cover">
+<div class="page cover" style="page-break-after:always;margin-bottom:0">
   <!-- Bandeau haut simplifié sans branding -->
   <div class="header-band">
     <div class="header-left">
@@ -2937,7 +2966,7 @@ function genEDLPdf(edlId){
   rooms.forEach((room,ri)=>{
     const its=e.items.filter(it=>it.room===room);
     pg2+=`
-<div class="page content ${ri===0?'first-content':''}">
+<div class="content-section" style="margin-bottom:0">
   ${ri===0?`<div class="content-header">
     <div class="content-header-left">
       <div class="ch-title">Inventaire détaillé</div>
@@ -2981,7 +3010,7 @@ function genEDLPdf(edlId){
 
   // ── PAGE SIGNATURES ──
   let pg3=`
-<div class="page signature-page">
+<div class="signature-page">
   <div class="sig-header">
     <div class="sig-title">Signatures des parties</div>
     <div class="sig-sub">En signant ce document, les parties reconnaissent l'exactitude des constats effectués.</div>
@@ -3028,8 +3057,8 @@ function genEDLPdf(edlId){
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Inter',Helvetica,Arial,sans-serif;background:#e8e8e8;color:#1a1a2e;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .page{background:#fff;width:210mm;min-height:297mm;margin:0 auto 20px;padding:0;position:relative;box-shadow:0 4px 24px rgba(0,0,0,.15);page-break-after:always}
-    @media print{body{background:#fff}.page{box-shadow:none;margin:0;width:100%}}
+    .page{background:#fff;width:210mm;margin:0 auto 20px;padding:0;position:relative;box-shadow:0 4px 24px rgba(0,0,0,.15)}
+    @media print{body{background:#fff}.page{box-shadow:none;margin:0;width:100%}.page:not(:last-child){page-break-after:always}}
 
     /* ── HEADER BAND ── */
     .header-band{background:#1a1a2e;color:#fff;padding:14px 28px;display:flex;justify-content:space-between;align-items:center}
@@ -3136,6 +3165,343 @@ window.onload=function(){
 </body></html>`);
   w.document.close();
 }
+
+
+// ══ EDL STRUCTURE ══
+const EDLS_PIECES = [
+  {id:'hall',     icon:'🚪', name:"Hall d'entrée",   fixe:['Sol','Murs / Peinture','Plafond','Porte entrée + serrure','Interrupteur / Prise','Luminaire','Placard / Porte-manteau']},
+  {id:'sejour',   icon:'🛋', name:'Séjour',            fixe:['Sol','Murs / Peinture','Plafond','Fenêtre / Vitrage','Volets / Store','Porte intérieure','Interrupteurs / Prises','Luminaire']},
+  {id:'cuisine',  icon:'🍳', name:'Cuisine',            fixe:['Sol','Murs / Crédence','Plafond','Fenêtre / Vitrage','Volets','Évier + Robinetterie','Plan de travail','Plaques cuisson','Four / Micro-ondes','Réfrigérateur','Hotte','Meubles bas / hauts','Interrupteurs / Prises','Luminaire']},
+  {id:'ch1',      icon:'🛏', name:'Chambre n°1 (10,92 m²)', fixe:['Sol','Murs / Peinture','Plafond','Fenêtre / Vitrage','Volets / Rideau','Porte + serrure','Interrupteurs / Prises','Luminaire']},
+  {id:'ch2',      icon:'🛏', name:'Chambre n°2 (16,25 m²)', fixe:['Sol','Murs / Peinture','Plafond','Fenêtre / Vitrage','Volets / Rideau','Porte + serrure','Interrupteurs / Prises','Luminaire']},
+  {id:'sdb',      icon:'🚿', name:'Salle de bain',     fixe:['Sol','Murs / Faïence','Plafond','Fenêtre / Aération VMC','Douche / Baignoire','Robinetterie douche','Lavabo + Robinetterie','Miroir','Meuble SDB','Porte-serviette','Interrupteur / Prise rasoir','Luminaire','Chauffe-eau']},
+  {id:'wc',       icon:'🚽', name:'WC séparé',          fixe:['Sol','Murs / Peinture','Plafond','Porte + verrou','Cuvette + Abattant','Chasse d\'eau','Lave-mains / Robinetterie','Aération / VMC','Interrupteur / Luminaire']},
+];
+
+const EDLS_ETATS = [
+  {code:'TBE', label:'TBE', cls:'on-tbe'},
+  {code:'BE',  label:'BE',  cls:'on-be'},
+  {code:'EU',  label:'EU',  cls:'on-eu'},
+  {code:'MR',  label:'MR',  cls:'on-mr'},
+];
+
+// Mapping pièces inventaire → id pièce
+const EDLS_ROOM_MAP = {
+  'Salon':'sejour','Séjour':'sejour',
+  'Cuisine':'cuisine',
+  'Chambre 1':'ch1','Chambre 2':'ch2',
+  'Salle de bain':'sdb','SDB':'sdb',
+  'WC':'wc',
+  'Entrée':'hall','Hall':'hall',
+};
+
+function rEDLStructure(el) {
+  const p = P(); if (!p) return; ensure(p);
+  if (!p.edlsData) p.edlsData = {};
+
+  const data = p.edlsData;
+
+  // KPI rapides
+  let totalLignes = 0, rempliesE = 0, rempliesS = 0, degradees = 0;
+  EDLS_PIECES.forEach(piece => {
+    const inv = (p.inventory || []).filter(it => EDLS_ROOM_MAP[it.room] === piece.id);
+    const lignes = [...piece.fixe, ...inv.map(i => i.name)];
+    totalLignes += lignes.length;
+    lignes.forEach(nom => {
+      const k = piece.id + '|' + nom;
+      if (data[k]?.entry) rempliesE++;
+      if (data[k]?.exit)  rempliesS++;
+      if (data[k]?.entry === 'MR' || data[k]?.exit === 'MR') degradees++;
+    });
+  });
+
+  el.innerHTML = `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 class="section-h" style="margin:0">📋 EDL Structuré</h3>
+    <div style="display:flex;gap:7px">
+      <button class="btn-g btn-sm" onclick="genEDLStructurePdf()">📄 PDF</button>
+      <button class="btn btn-sm" onclick="saveEDLStructure()">💾 Sauver</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kg kg3" style="margin-bottom:14px">
+    <div class="kc"><div class="ka" style="background:var(--green)"></div><div class="kl">Entrée remplie</div><div class="kv" style="color:var(--green)">${rempliesE}/${totalLignes}</div></div>
+    <div class="kc"><div class="ka" style="background:var(--orange)"></div><div class="kl">Sortie remplie</div><div class="kv" style="color:var(--orange)">${rempliesS}/${totalLignes}</div></div>
+    <div class="kc"><div class="ka" style="background:var(--red)"></div><div class="kl">Dégradés (MR)</div><div class="kv" style="color:var(--red)">${degradees}</div></div>
+  </div>
+
+  <!-- Légende -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:9px 12px;background:var(--bg3);border-radius:10px;border:1px solid var(--bd)">
+    <span style="font-size:10px;font-weight:700;color:var(--t4);align-self:center">LÉGENDE :</span>
+    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;border:1.5px solid var(--teal);color:var(--teal);background:var(--teal2)">TBE = Très bon état</span>
+    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;border:1.5px solid var(--green);color:var(--green);background:var(--green2)">BE = Bon état</span>
+    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;border:1.5px solid var(--orange);color:var(--orange);background:var(--orange2)">EU = État d'usage</span>
+    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;border:1.5px solid var(--red);color:var(--red);background:var(--red2)">MR = À remplacer</span>
+  </div>
+
+  <!-- Entête colonnes globale -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin-bottom:4px;padding:0 2px">
+    <div style="font-size:9px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.07em">Élément</div>
+    <div style="font-size:9px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.07em;text-align:center;border-left:2px solid rgba(0,208,132,.3);padding-left:6px">📥 ENTRÉE</div>
+    <div style="font-size:9px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:.07em;text-align:center;border-left:2px solid rgba(255,140,66,.3);padding-left:6px">📤 SORTIE</div>
+  </div>
+
+  ${EDLS_PIECES.map(piece => {
+    const inv = (p.inventory || []).filter(it => EDLS_ROOM_MAP[it.room] === piece.id);
+    const lignes = piece.fixe.map(n => ({nom:n, isInv:false})).concat(inv.map(i => ({nom:i.name, isInv:true, brand:i.brand})));
+    return `
+    <div class="edls-room-hdr">
+      <span class="rh-icon">${piece.icon}</span>
+      <span class="rh-name">${piece.name}</span>
+      <span class="rh-count">${lignes.length} élément${lignes.length>1?'s':''}</span>
+    </div>
+    <div class="edls-wrap">
+    <table class="edls-table">
+      <thead><tr>
+        <th>Élément</th>
+        <th class="edls-col-e">Entrée</th>
+        <th class="edls-col-s">Sortie</th>
+      </tr></thead>
+      <tbody>
+        ${lignes.map(({nom, isInv, brand}) => {
+          const k = piece.id + '|' + nom;
+          const cur = data[k] || {};
+          return `<tr class="${isInv?'is-inv':'is-fixed'}">
+            <td>
+              <div>${nom}${isInv?' 🪑':''}</div>
+              ${brand?`<div style="font-size:10px;color:var(--t4)">${brand}</div>`:''}
+            </td>
+            <td class="edls-col-e">
+              <div class="edls-sel">
+                ${EDLS_ETATS.map(e=>`<button onclick="setEDLS('${piece.id}','${nom}','entry','${e.code}',this)" class="${cur.entry===e.code?e.cls:''}">${e.label}</button>`).join('')}
+              </div>
+              <textarea class="edls-note" placeholder="Note entrée..." oninput="setEDLSNote('${piece.id}','${nom}','entryNote',this.value)" rows="1">${cur.entryNote||''}</textarea>
+            </td>
+            <td class="edls-col-s">
+              <div class="edls-sel">
+                ${EDLS_ETATS.map(e=>`<button onclick="setEDLS('${piece.id}','${nom}','exit','${e.code}',this)" class="${cur.exit===e.code?e.cls:''}">${e.label}</button>`).join('')}
+              </div>
+              <textarea class="edls-note" placeholder="Note sortie..." oninput="setEDLSNote('${piece.id}','${nom}','exitNote',this.value)" rows="1">${cur.exitNote||''}</textarea>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div>`;
+  }).join('')}
+
+  <!-- Observations générales -->
+  <div class="edls-room-hdr" style="margin-top:14px">
+    <span class="rh-icon">📝</span>
+    <span class="rh-name">Observations générales</span>
+  </div>
+  <div class="edls-wrap" style="padding:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:5px">📥 ENTRÉE</div>
+        <textarea class="edls-note" rows="4" placeholder="État général à l'entrée..." oninput="setEDLSObs('obsEntree',this.value)" style="min-height:80px">${data['obsEntree']||''}</textarea>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--orange);margin-bottom:5px">📤 SORTIE</div>
+        <textarea class="edls-note" rows="4" placeholder="État général à la sortie..." oninput="setEDLSObs('obsSortie',this.value)" style="min-height:80px">${data['obsSortie']||''}</textarea>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:5px">⚠ Dégradations imputables au locataire</div>
+      <textarea class="edls-note" rows="3" placeholder="Lister les dégradations constatées à la sortie..." oninput="setEDLSObs('obsDeg',this.value)" style="min-height:60px;border-color:rgba(255,77,109,.3)">${data['obsDeg']||''}</textarea>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;display:flex;gap:8px">
+    <button class="btn btn-full" onclick="saveEDLStructure()">💾 Sauvegarder l'état des lieux</button>
+    <button class="btn-g" style="flex:0 0 auto;padding:0 16px;border-radius:12px" onclick="genEDLStructurePdf()">📄 PDF</button>
+  </div>
+  `;
+}
+
+function setEDLS(pieceId, nom, col, val, btn) {
+  const p = P(); if (!p) return;
+  if (!p.edlsData) p.edlsData = {};
+  const k = pieceId + '|' + nom;
+  if (!p.edlsData[k]) p.edlsData[k] = {};
+  p.edlsData[k][col] = val;
+  // Update boutons dans la même cellule
+  const clsMap = {TBE:'on-tbe', BE:'on-be', EU:'on-eu', MR:'on-mr'};
+  btn.closest('.edls-sel').querySelectorAll('button').forEach(b => {
+    b.className = '';
+    if (b.textContent.trim() === val) b.className = clsMap[val] || '';
+  });
+  scheduleSave();
+}
+
+function setEDLSNote(pieceId, nom, col, val) {
+  const p = P(); if (!p) return;
+  if (!p.edlsData) p.edlsData = {};
+  const k = pieceId + '|' + nom;
+  if (!p.edlsData[k]) p.edlsData[k] = {};
+  p.edlsData[k][col] = val;
+  scheduleSave();
+}
+
+function setEDLSObs(key, val) {
+  const p = P(); if (!p) return;
+  if (!p.edlsData) p.edlsData = {};
+  p.edlsData[key] = val;
+  scheduleSave();
+}
+
+function saveEDLStructure() {
+  scheduleSave();
+  toast('État des lieux sauvegardé ✓', 'ok');
+}
+
+// ── PDF EDL STRUCTURE ──
+function genEDLStructurePdf() {
+  const p = P(); if (!p) return;
+  const data = p.edlsData || {};
+  const SC = {TBE:'#0a7c4a', BE:'#27ae60', EU:'#d67c00', MR:'#c0392b'};
+  const SBG = {TBE:'#e8f8f1', BE:'#eafaf1', EU:'#fef9e7', MR:'#fdedec'};
+  const today2 = new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  const refNum = 'EDL-STRUCT-' + Date.now().toString().slice(-6);
+
+  // Tenant actif
+  const tenant = (p.tenants||[]).find(t=>t.status==='active');
+  const tenantName = tenant?.name || 'Mme Juliette Pourias';
+
+  let piecesHTML = '';
+  EDLS_PIECES.forEach((piece, ri) => {
+    const inv = (p.inventory || []).filter(it => EDLS_ROOM_MAP[it.room] === piece.id);
+    const lignes = piece.fixe.map(n => ({nom:n, isInv:false})).concat(inv.map(i => ({nom:i.name, isInv:true, brand:i.brand||''})));
+    const rows = lignes.map((l, idx) => {
+      const k = piece.id + '|' + l.nom;
+      const cur = data[k] || {};
+      const badge = (col) => cur[col]
+        ? `<span style="background:${SBG[cur[col]]};color:${SC[cur[col]]};border:1px solid ${SC[cur[col]]}40;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap">${cur[col]}</span>`
+        : `<span style="color:#bbb;font-size:10px">—</span>`;
+      const note = (col) => cur[col] ? `<div style="font-size:10px;color:#666;margin-top:3px;font-style:italic">${cur[col]}</div>` : '';
+      return `<tr style="background:${idx%2===0?'#fff':'#fafafa'}${l.isInv?';border-left:3px solid #c9a84c':''}">
+        <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;vertical-align:top">
+          <div style="font-size:12px;font-weight:${l.isInv?700:500};color:${l.isInv?'#1a1a2e':'#333'}">${l.nom}${l.isInv?' 🪑':''}</div>
+          ${l.brand?`<div style="font-size:10px;color:#888">${l.brand}</div>`:''}
+        </td>
+        <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;border-left:2px solid rgba(39,174,96,.2);text-align:center;vertical-align:top">${badge('entry')}${note('entryNote')}</td>
+        <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;border-left:2px solid rgba(214,124,0,.2);text-align:center;vertical-align:top">${badge('exit')}${note('exitNote')}</td>
+      </tr>`;
+    }).join('');
+
+    piecesHTML += `
+    <div style="margin-bottom:20px;page-break-inside:avoid">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#1a1a2e;border-radius:8px 8px 0 0">
+        <span style="font-size:15px">${piece.icon}</span>
+        <span style="color:#fff;font-size:14px;font-weight:800;flex:1">${piece.name}</span>
+        <span style="color:#c9a84c;font-size:11px;font-weight:600">${lignes.length} élément${lignes.length>1?'s':''}</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #eee;border-top:none">
+        <thead><tr style="background:#f5f5f5">
+          <th style="padding:7px 12px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;border-bottom:1px solid #ddd;width:40%">Élément</th>
+          <th style="padding:7px 12px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#27ae60;border-bottom:1px solid #ddd;border-left:2px solid rgba(39,174,96,.3);width:30%">📥 ENTRÉE</th>
+          <th style="padding:7px 12px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#d67c00;border-bottom:1px solid #ddd;border-left:2px solid rgba(214,124,0,.3);width:30%">📤 SORTIE</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  });
+
+  // Observations
+  const obsHTML = `
+  <div style="margin-top:20px;border:1px solid #eee;border-radius:8px;overflow:hidden;page-break-inside:avoid">
+    <div style="background:#1a1a2e;padding:10px 16px"><span style="color:#fff;font-size:14px;font-weight:800">📝 Observations générales</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+      <div style="padding:14px 16px;border-right:1px solid #eee">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#27ae60;letter-spacing:.08em;margin-bottom:8px">📥 Entrée</div>
+        <div style="font-size:12px;color:#333;line-height:1.6;min-height:60px">${data['obsEntree']||'<span style="color:#bbb">—</span>'}</div>
+      </div>
+      <div style="padding:14px 16px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#d67c00;letter-spacing:.08em;margin-bottom:8px">📤 Sortie</div>
+        <div style="font-size:12px;color:#333;line-height:1.6;min-height:60px">${data['obsSortie']||'<span style="color:#bbb">—</span>'}</div>
+      </div>
+    </div>
+    ${data['obsDeg']?`<div style="padding:14px 16px;border-top:1px solid #fee;background:#fff5f5">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#c0392b;letter-spacing:.08em;margin-bottom:8px">⚠ Dégradations imputables au locataire</div>
+      <div style="font-size:12px;color:#c0392b;line-height:1.6">${data['obsDeg']}</div>
+    </div>`:''}
+  </div>`;
+
+  // Signatures
+  const sigHTML = `
+  <div style="margin-top:28px;page-break-inside:avoid">
+    <div style="background:#1a1a2e;padding:14px 20px;border-radius:8px 8px 0 0">
+      <div style="color:#fff;font-size:15px;font-weight:800">Signatures des parties</div>
+      <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:3px">Les parties certifient avoir procédé contradictoirement à cet état des lieux.</div>
+    </div>
+    <div style="border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px;display:grid;grid-template-columns:1fr 1fr;gap:0">
+      <div style="padding:20px 24px;border-right:1px solid #eee">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#c9a84c;letter-spacing:.1em;margin-bottom:6px">Le(s) Bailleur(s)</div>
+        <div style="font-size:14px;font-weight:800;color:#1a1a2e;margin-bottom:4px">M. Atoch Mike / M. Sorbier Guillaume</div>
+        <div style="margin-top:20px">
+          <div style="font-size:9px;color:#999;margin-bottom:6px">Signature :</div>
+          <div style="height:60px;border:1.5px dashed #ccc;border-radius:6px;background:#fafafa"></div>
+        </div>
+      </div>
+      <div style="padding:20px 24px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#c9a84c;letter-spacing:.1em;margin-bottom:6px">Le(s) Locataire(s)</div>
+        <div style="font-size:14px;font-weight:800;color:#1a1a2e;margin-bottom:4px">${tenantName}</div>
+        <div style="margin-top:20px">
+          <div style="font-size:9px;color:#999;margin-bottom:6px">Signature (Lu et approuvé) :</div>
+          <div style="height:60px;border:1.5px dashed #ccc;border-radius:6px;background:#fafafa"></div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:12px;font-size:10px;color:#888">Document établi en 2 exemplaires — ${refNum} — ${today2}</div>
+  </div>`;
+
+  const css = `
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',Helvetica,Arial,sans-serif;background:#e8e8e8;color:#1a1a2e;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:20px}
+    .page{background:#fff;width:210mm;margin:0 auto;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.15)}
+    @media print{body{background:#fff;padding:0}.page{box-shadow:none;padding:18px;width:100%}}
+    .page-break{page-break-before:always;margin-top:0}
+  `;
+
+  const header = `
+  <div style="background:#1a1a2e;padding:16px 20px;border-radius:8px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="color:#fff;font-size:20px;font-weight:900;letter-spacing:-.02em">ÉTAT DES LIEUX</div>
+      <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:3px">Entrée & Sortie · Location meublée · Colocation</div>
+    </div>
+    <div style="text-align:right">
+      <div style="color:#c9a84c;font-size:11px;font-weight:700">${refNum}</div>
+      <div style="color:rgba(255,255,255,.5);font-size:10px;margin-top:2px">${today2}</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+    <div style="background:#f8f8f8;border-radius:8px;padding:12px 14px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#c9a84c;letter-spacing:.1em;margin-bottom:5px">Bien</div>
+      <div style="font-size:13px;font-weight:700;color:#1a1a2e">${p.info.name}</div>
+      <div style="font-size:11px;color:#666;margin-top:2px">${p.info.address}</div>
+    </div>
+    <div style="background:#f8f8f8;border-radius:8px;padding:12px 14px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#c9a84c;letter-spacing:.1em;margin-bottom:5px">Locataire</div>
+      <div style="font-size:13px;font-weight:700;color:#1a1a2e">${tenantName}</div>
+      <div style="font-size:11px;color:#27ae60;margin-top:2px">Entrée : 1er avril 2026</div>
+    </div>
+    <div style="background:#f8f8f8;border-radius:8px;padding:12px 14px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#c9a84c;letter-spacing:.1em;margin-bottom:5px">Légende</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px">
+        ${Object.entries({TBE:'#0a7c4a',BE:'#27ae60',EU:'#d67c00',MR:'#c0392b'}).map(([k,c])=>
+          `<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:${SC[k]+'22'};color:${c};border:1px solid ${c}40">${k}</span>`
+        ).join('')}
+      </div>
+    </div>
+  </div>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>EDL Structuré — ${p.info.name}</title><style>${css}</style></head><body><div class="page">${header}${piecesHTML}${obsHTML}${sigHTML}</div><sc`+`ript>window.onload=function(){setTimeout(()=>window.print(),400);};</sc`+`ript></body></html>`);
+  w.document.close();
+}
+
 
 // ══ INVENTORY ══
 function rInventory(el){
