@@ -1770,7 +1770,7 @@ function rDash(el){
       <button class="btn-scan" onclick="openScanner('expense')" style="justify-content:center;padding:12px 8px;font-size:13px">📷 Scanner facture</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('rents')">💰 Gérer loyers</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('tenants')">👤 Locataires</button>
-      <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('edl')">📄 État des lieux</button>
+      <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('edlstructure')">📄 État des lieux</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="openSimulateur()">🧮 Simulateur</button>
       <button class="btn-g" style="padding:12px;font-size:12px;font-weight:600;border-radius:var(--rs)" onclick="goTab('notes')">📝 Notes</button>
     </div>
@@ -2533,8 +2533,7 @@ function rEDL(el){
   el.innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <h3 class="section-h" style="margin:0">État des lieux</h3>
-    <button class="btn btn-sm" onclick="openNewEDL()">+ Nouvel EDL</button>
-    <button class="btn-g btn-sm" onclick="goTab('edlstructure')">📋 EDL Structuré</button>
+    <button class="btn btn-sm" onclick="goTab('edlstructure')">📋 EDL Structuré</button>
   </div>
 
   <!-- Tabs: Commun / Colocataires / Galerie -->
