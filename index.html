@@ -340,44 +340,46 @@ select option{background:var(--bg2)}
 
 /* ── SCANNER ── */
 #scanner-overlay{display:none;position:fixed;inset:0;z-index:500;background:#000}
-#scanner-overlay.on{display:block}
+#scanner-overlay.on{display:flex;flex-direction:column}
 #scanner-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.scan-ui{position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none}
-.scan-top{padding:10px 14px;background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent);pointer-events:all}
-.scan-mid{flex:1;display:flex;align-items:center;justify-content:center}
-.scan-bot{padding:14px 18px 28px;background:linear-gradient(to top,rgba(0,0,0,.88),transparent);pointer-events:all}
+.scan-ui{position:relative;z-index:1;display:flex;flex-direction:column;height:100%;pointer-events:none}
+.scan-top{padding:10px 14px;background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent);pointer-events:auto}
+.scan-mid{flex:1;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.scan-bot{padding:14px 18px 40px;background:linear-gradient(to top,rgba(0,0,0,.9),transparent);pointer-events:auto}
 .scan-frame{
   width:min(95vw,520px);aspect-ratio:3/4;
-  border:2px solid var(--gold);border-radius:14px;
-  box-shadow:0 0 0 9999px rgba(0,0,0,.55);position:relative;
+  border:3px solid var(--gold);border-radius:14px;
+  position:relative;pointer-events:none;
 }
-.scan-corner{position:absolute;width:28px;height:28px;border-color:var(--gold2);border-style:solid}
+.scan-overlay-dark{position:absolute;inset:0;background:rgba(0,0,0,.45);pointer-events:none}
+.scan-corner{position:absolute;width:28px;height:28px;border-color:var(--gold);border-style:solid}
 .scan-corner.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:5px 0 0 0}
 .scan-corner.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 5px 0 0}
 .scan-corner.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px;border-radius:0 0 0 5px}
 .scan-corner.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 5px 0}
 .scan-line{position:absolute;left:6px;right:6px;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:scanline 2.2s ease-in-out infinite}
 @keyframes scanline{0%,100%{top:10px;opacity:.7}50%{top:calc(100% - 10px);opacity:1}}
-.scan-hint{color:rgba(255,255,255,.8);font-size:13px;font-weight:500;text-align:center;margin-bottom:14px}
-.scan-btns{display:flex;gap:10px;pointer-events:all}
+.scan-hint{color:rgba(255,255,255,.9);font-size:13px;font-weight:600;text-align:center;margin-bottom:16px;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.scan-btns{display:flex;gap:12px;pointer-events:auto}
 .scan-capture{
   flex:1;
   background:linear-gradient(135deg,var(--gold),var(--gold2));
-  border:none;border-radius:14px;
-  color:#080b12;font-weight:800;font-size:15px;
-  padding:18px;cursor:pointer;font-family:inherit;
+  border:none;border-radius:16px;
+  color:#080b12;font-weight:800;font-size:16px;
+  padding:20px;cursor:pointer;font-family:inherit;
   letter-spacing:.03em;
-  pointer-events:all;
-  -webkit-tap-highlight-color:rgba(0,0,0,.2);
+  pointer-events:auto;
   touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
 }
 .scan-cancel{
-  background:rgba(255,255,255,.12);
-  border:1px solid rgba(255,255,255,.2);
-  border-radius:14px;color:#fff;
-  font-size:14px;font-weight:600;
-  padding:18px 20px;cursor:pointer;font-family:inherit;
-  pointer-events:all;
+  background:rgba(255,255,255,.15);
+  border:1.5px solid rgba(255,255,255,.3);
+  border-radius:16px;color:#fff;
+  font-size:14px;font-weight:700;
+  padding:20px 22px;cursor:pointer;font-family:inherit;
+  pointer-events:auto;
   -webkit-tap-highlight-color:rgba(0,0,0,.1);
   touch-action:manipulation;
 }
