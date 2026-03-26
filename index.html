@@ -746,7 +746,7 @@ select option{background:var(--bg2)}
     <div class="scan-top">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div style="color:#fff;font-size:14px;font-weight:700">📷 Scanner</div>
-        <button onclick="closeScanner()" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:14px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+        <button id="btn-scanner-close" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:14px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
       </div>
     </div>
     <div class="scan-mid">
@@ -759,8 +759,8 @@ select option{background:var(--bg2)}
     <div class="scan-bot">
       <div class="scan-hint" id="scan-hint">Cadrez le document ou la facture</div>
       <div class="scan-btns">
-        <button class="scan-capture" onclick="capturePhoto()">📷 Capturer</button>
-        <button class="scan-cancel" onclick="closeScanner()">Annuler</button>
+        <button class="scan-capture" id="btn-capture">📷 Capturer</button>
+        <button class="scan-cancel" id="btn-cancel">Annuler</button>
       </div>
     </div>
   </div>
@@ -985,6 +985,26 @@ document.getElementById('eye-btn').onclick=()=>{
   document.getElementById('eye-btn').textContent=i.type==='password'?'👁':'🙈';
 };
 document.getElementById('l-btn').onclick=doLogin;
+
+// ══ SCANNER — listeners tactiles robustes ══
+function initScannerButtons(){
+  const btnCapture=document.getElementById('btn-capture');
+  const btnCancel=document.getElementById('btn-cancel');
+  const btnClose=document.getElementById('btn-scanner-close');
+  if(btnCapture){
+    btnCapture.addEventListener('touchend',function(e){e.preventDefault();capturePhoto();},{passive:false});
+    btnCapture.addEventListener('click',capturePhoto);
+  }
+  if(btnCancel){
+    btnCancel.addEventListener('touchend',function(e){e.preventDefault();closeScanner();},{passive:false});
+    btnCancel.addEventListener('click',closeScanner);
+  }
+  if(btnClose){
+    btnClose.addEventListener('touchend',function(e){e.preventDefault();closeScanner();},{passive:false});
+    btnClose.addEventListener('click',closeScanner);
+  }
+}
+initScannerButtons();
 ['l-name','l-proj','l-code'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();}));
 async function hashPassword(pwd, salt){
   const enc = new TextEncoder();
