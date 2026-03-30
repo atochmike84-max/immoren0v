@@ -2665,8 +2665,29 @@ function openNewEDL(){
         <option value="">Aucune comparaison</option>
         ${entryEDLs.map(e=>`<option value="${e.id}">Entree ${fmtD(e.date)} - ${e.tenantName||'General'}</option>`).join('')}
       </select></div>`:'<input type="hidden" id="f-compare" value="">'}
-    <button class="btn btn-full" style="margin-top:8px;touch-action:manipulation" onclick="saveNewEDL2()">Creer l'etat des lieux</button>`);
+    <button class="btn btn-full" style="margin-top:8px;touch-action:manipulation" id="btn-create-edl">Creer l'etat des lieux</button>`);
   openMod();
+  // Listeners robustes pour Android
+  setTimeout(()=>{
+    document.querySelectorAll('#rooms-list button').forEach(btn=>{
+      btn.addEventListener('touchend',function(e){e.preventDefault();toggleRoomSel(this);},{passive:false});
+      btn.addEventListener('click',function(){toggleRoomSel(this);});
+    });
+    document.querySelectorAll('#tenants-list button').forEach(btn=>{
+      btn.addEventListener('touchend',function(e){e.preventDefault();toggleTenantSel(this);},{passive:false});
+      btn.addEventListener('click',function(){toggleTenantSel(this);});
+    });
+    const btnCreate=document.getElementById('btn-create-edl');
+    if(btnCreate){
+      btnCreate.addEventListener('touchend',function(e){e.preventDefault();saveNewEDL2();},{passive:false});
+      btnCreate.addEventListener('click',saveNewEDL2);
+    }
+  },100);
+}
+function toggleRoomSel(btn){
+  const sel=btn.style.background.includes('gold3')||btn.style.background.includes('var(--gold');
+  if(sel){btn.style.border='1px solid var(--bd)';btn.style.background='var(--bg3)';btn.style.color='var(--t3)';}
+  else{btn.style.border='1.5px solid var(--gold)';btn.style.background='var(--gold3)';btn.style.color='var(--gold)';}
 }
 function toggleTenantSel(btn){
   const sel=btn.style.background.includes('blue2')||btn.style.borderColor.includes('blue');
