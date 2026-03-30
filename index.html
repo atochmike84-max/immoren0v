@@ -2527,35 +2527,28 @@ function rEDL(el){
   const hasDeg=e=>(e.items||[]).some(it=>it.etat==='Dégradé'||it.etat==='Mauvais');
   const score=e=>{const its=e.items||[];if(!its.length)return null;const g=its.filter(i=>['Neuf','Très bon','Bon'].includes(i.etat)).length;return Math.round(g/its.length*100);};
 
-  // Group EDLs: commun + by colocataire
-  const edlCommun=p.edls.filter(e=>e.scope==='commun');
-  const edlColos=p.tenants.map(t=>({tenant:t,edls:p.edls.filter(e=>e.tenantId===t.id)}));
+  // Tous les EDL triés par date
+  const allEdls=[...p.edls].sort((a,b)=>b.date.localeCompare(a.date));
 
   el.innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <h3 class="section-h" style="margin:0">État des lieux</h3>
-    <button class="btn btn-sm" onclick="openNewEDL()">+ Nouvel EDL</button>
+    <div style="display:flex;gap:7px">
+      <button class="btn-g btn-sm" onclick="switchEDLView('gallery',this)">📸 Galerie</button>
+      <button class="btn btn-sm" onclick="openNewEDL()">+ Nouvel EDL</button>
+    </div>
   </div>
 
-  <!-- Tabs: Commun / Colocataires / Galerie -->
-  <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px">
-    <button onclick="switchEDLView('commun',this)" id="edlv-commun" style="flex:0 0 auto;padding:8px 14px;border-radius:10px;border:1.5px solid var(--gold);background:var(--gold3);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🏠 Parties communes</button>
-    ${p.tenants.filter(t=>t.status==='active').map(t=>`<button onclick="switchEDLView('colo-${t.id}',this)" id="edlv-colo-${t.id}" style="flex:0 0 auto;padding:8px 14px;border-radius:10px;border:1.5px solid var(--bd);background:var(--bg3);color:var(--t3);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">👤 ${t.name.split(' ')[0]}</button>`).join('')}
-    <button onclick="switchEDLView('gallery',this)" id="edlv-gallery" style="flex:0 0 auto;padding:8px 14px;border-radius:10px;border:1.5px solid var(--bd);background:var(--bg3);color:var(--t3);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📸 Galerie (${allPhotos.length})</button>
+  <!-- Liste unifiée de tous les EDL -->
+  <div id="edlview-all">
+    ${allEdls.length?allEdls.map(e=>edlCard(e)).join(''):`
+    <div style="text-align:center;padding:32px 16px;background:var(--bg2);border-radius:14px;border:2px dashed var(--bd)">
+      <div style="font-size:36px;margin-bottom:12px">📋</div>
+      <div style="color:var(--t2);font-weight:700;font-size:15px;margin-bottom:6px">Aucun état des lieux</div>
+      <div style="color:var(--t4);font-size:13px;margin-bottom:16px">Créez votre premier EDL en choisissant les pièces et les locataires</div>
+      <button class="btn" onclick="openNewEDL()">+ Créer un état des lieux</button>
+    </div>`}
   </div>
-
-  <!-- Vue Commun -->
-  <div id="edlview-commun">
-    ${edlCommun.length?edlCommun.map(e=>edlCard(e)).join(''):emptyEDL('Parties communes','Créer EDL commun (salon, cuisine, salle de bain...)',`openNewEDL('commun')`)}
-  </div>
-
-  <!-- Vues Colocataires -->
-  ${p.tenants.filter(t=>t.status==='active').map(t=>`
-    <div id="edlview-colo-${t.id}" style="display:none">
-      ${edlColos.find(x=>x.tenant.id===t.id)?.edls.length
-        ? edlColos.find(x=>x.tenant.id===t.id).edls.map(e=>edlCard(e)).join('')
-        : emptyEDL(t.name,'Créer EDL chambre privative',`openNewEDL(${t.id})`)}
-    </div>`).join('')}
 
   <!-- Galerie globale -->
   <div id="edlview-gallery" style="display:none">
@@ -2628,46 +2621,84 @@ function switchEDLView(id,btn){
   if(btn){btn.style.border='1.5px solid var(--gold)';btn.style.background='var(--gold3)';btn.style.color='var(--gold)';}
 }
 
-function openNewEDL(scope){
+function openNewEDL(){
   const p=P();if(!p)return;ensure(p);
-  const isCommun=scope==='commun';
-  const tenantId=(!isCommun&&scope)?scope:null;
-  const tenant=tenantId?p.tenants.find(t=>t.id===tenantId):null;
-  // Récupérer les pièces selon scope
   const allRooms=[...new Set(p.inventory.map(it=>it.room).filter(Boolean))];
-  const COMMON=['Salon','Séjour','Cuisine','Salle de bain','WC','Entrée','Couloir','Buanderie','Autre'];
-  const privateRooms=allRooms.filter(r=>!COMMON.includes(r));
-  const commonRooms=allRooms.filter(r=>COMMON.includes(r));
-  const defaultRooms=isCommun?commonRooms:privateRooms;
-  // EDL d'entrée existant pour comparaison
-  const entryEDLs=p.edls.filter(e=>e.type==='entry'&&(isCommun?e.scope==='commun':e.tenantId===tenantId));
-  setMod('Nouvel état des lieux',`
+  const FALLBACK=['Entree','Salon','Cuisine','Salle de bain','WC','Chambre 1','Chambre 2'];
+  const rooms=allRooms.length?allRooms:FALLBACK;
+  const activeT=p.tenants.filter(t=>t.status==='active');
+  const entryEDLs=p.edls.filter(e=>e.type==='entry');
+  setMod('Nouvel etat des lieux',`
     <div class="g2">
       <div class="field"><label>Type</label>
         <select class="inp" id="f-type">
-          <option value="entry">📥 Entrée</option>
-          <option value="exit">📤 Sortie</option>
-          <option value="intermediate">🔄 Intermédiaire</option>
+          <option value="entry">Entree</option>
+          <option value="exit">Sortie</option>
+          <option value="intermediate">Intermediaire</option>
         </select>
       </div>
       <div class="field"><label>Date</label><input class="inp" id="f-date" type="date" value="${today()}"></div>
     </div>
-    ${!isCommun?`<div class="field"><label>Colocataire</label><input class="inp" id="f-tenant" value="${tenant?.name||''}" placeholder="Nom du colocataire"></div>`:''}
+    ${activeT.length?`
+    <div class="field">
+      <label>Locataire(s) concerne(s)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px" id="tenants-list">
+        ${activeT.map(t=>`<button data-tid="${t.id}" data-tname="${t.name}" onclick="toggleTenantSel(this)" style="border:1px solid var(--bd);background:var(--bg3);color:var(--t3);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">${t.name.split(' ')[0]}</button>`).join('')}
+        <button data-tid="0" data-tname="Parties communes" onclick="toggleTenantSel(this)" style="border:1px solid var(--bd);background:var(--bg3);color:var(--t3);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">Parties communes</button>
+      </div>
+      <div style="color:var(--t4);font-size:11px">Appuyez pour selectionner</div>
+    </div>`:
+    '<div class="field"><label>Reference</label><input class="inp" id="f-tenant-manual" placeholder="ex: M. Dupont, Parties communes..."></div>'}
+    <div class="field">
+      <label>Pieces a inspecter</label>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button onclick="selectAllRooms(true)" style="font-size:11px;font-weight:700;padding:5px 11px;border:1px solid var(--bd);border-radius:7px;background:var(--bg3);color:var(--t2);cursor:pointer;font-family:inherit;touch-action:manipulation">Tout selectionner</button>
+        <button onclick="selectAllRooms(false)" style="font-size:11px;font-weight:700;padding:5px 11px;border:1px solid var(--bd);border-radius:7px;background:var(--bg3);color:var(--t2);cursor:pointer;font-family:inherit;touch-action:manipulation">Tout deselectionner</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px" id="rooms-list">
+        ${rooms.map(r=>`<button data-room="${r}" onclick="toggleRoomSel(this,'${r}')" style="border:1.5px solid var(--gold);background:var(--gold3);color:var(--gold);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">${r}</button>`).join('')}
+      </div>
+      ${!allRooms.length?`<div style="color:var(--orange);font-size:12px;padding:8px 10px;background:var(--orange2);border-radius:8px;margin-top:8px">Inventaire vide - ajoutez vos meubles dans l'onglet Mobilier</div>`:''}
+    </div>
     ${entryEDLs.length?`<div class="field"><label>Comparer avec (optionnel)</label>
       <select class="inp" id="f-compare">
-        <option value="">— Aucune comparaison —</option>
-        ${entryEDLs.map(e=>`<option value="${e.id}">Entrée ${fmtD(e.date)} · ${e.tenantName||'Commun'}</option>`).join('')}
+        <option value="">Aucune comparaison</option>
+        ${entryEDLs.map(e=>`<option value="${e.id}">Entree ${fmtD(e.date)} - ${e.tenantName||'General'}</option>`).join('')}
       </select></div>`:'<input type="hidden" id="f-compare" value="">'}
-    <div class="field"><label>Pièces à inspecter</label>
-      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px" id="rooms-list">
-        ${(defaultRooms.length?defaultRooms:allRooms).map(r=>`<button data-room="${r}" onclick="toggleRoomSel(this,'${r}')" style="border:1.5px solid var(--gold);background:var(--gold3);color:var(--gold);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
-        ${(defaultRooms.length?allRooms.filter(r=>!defaultRooms.includes(r)):[]).map(r=>`<button data-room="${r}" onclick="toggleRoomSel(this,'${r}')" style="border:1px solid var(--bd);background:var(--bg3);color:var(--t3);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
-      </div>
-      ${!allRooms.length?`<div style="color:var(--orange);font-size:12px;padding:8px;background:var(--orange2);border-radius:8px">⚠ Aucun article dans l'inventaire Mobilier. Ajoutez d'abord vos meubles.</div>`:''}
-    </div>
-    <button class="btn btn-full" onclick="saveNewEDL(${tenantId||0},'${isCommun?'commun':'private'}')">Créer l'état des lieux</button>`);
+    <button class="btn btn-full" style="margin-top:8px;touch-action:manipulation" onclick="saveNewEDL2()">Creer l'etat des lieux</button>`);
   openMod();
 }
+function toggleTenantSel(btn){
+  const sel=btn.style.background.includes('blue2')||btn.style.borderColor.includes('blue');
+  if(sel){btn.style.border='1px solid var(--bd)';btn.style.background='var(--bg3)';btn.style.color='var(--t3)';}
+  else{btn.style.border='1.5px solid var(--blue)';btn.style.background='var(--blue2)';btn.style.color='var(--blue)';}
+}
+function selectAllRooms(sel){
+  document.querySelectorAll('#rooms-list button').forEach(btn=>{
+    if(sel){btn.style.border='1.5px solid var(--gold)';btn.style.background='var(--gold3)';btn.style.color='var(--gold)';}
+    else{btn.style.border='1px solid var(--bd)';btn.style.background='var(--bg3)';btn.style.color='var(--t3)';}
+  });
+}
+function saveNewEDL2(){
+  const p=P();if(!p)return;ensure(p);
+  const type=document.getElementById('f-type').value;
+  const date=document.getElementById('f-date').value;
+  const compareWith=document.getElementById('f-compare')?.value||null;
+  const selRooms=[...document.querySelectorAll('#rooms-list button')].filter(b=>b.style.background.includes('gold3')||b.style.background.includes('var(--gold')).map(b=>b.dataset.room);
+  if(!selRooms.length){toast('Selectionnez au moins une piece','err');return;}
+  const selTenants=[...document.querySelectorAll('#tenants-list button')].filter(b=>b.style.background.includes('blue2'));
+  const tenantIds=selTenants.map(b=>parseInt(b.dataset.tid)).filter(id=>id>0);
+  const tenantNames=selTenants.map(b=>b.dataset.tname).join(', ')||document.getElementById('f-tenant-manual')?.value.trim()||'General';
+  const scope=tenantIds.length?'private':'commun';
+  const mainTenantId=tenantIds[0]||null;
+  const items=p.inventory.filter(it=>selRooms.includes(it.room)).map(it=>({invId:it.id,name:it.name,room:it.room,brand:it.brand||'',etatRef:it.state,etat:it.state,notes:'',photos:[]}));
+  selRooms.forEach(room=>{if(!items.some(it=>it.room===room))items.push({invId:null,name:'Piece - '+room,room,brand:'',etatRef:'Bon',etat:'Bon',notes:'',photos:[]});});
+  const edl={id:Date.now(),type,date,scope,tenantId:mainTenantId,tenantName:tenantNames,tenantIds,compareWith:compareWith||null,items,signature:null,signatureDate:null};
+  p.edls.push(edl);
+  addLog('a cree EDL '+type+' pour '+tenantNames);
+  closeMod();renderTab('edl');scheduleSave();toast('Etat des lieux cree','ok');
+}
+
 function saveNewEDL(tenantId,scope){
   const p=P();if(!p)return;ensure(p);
   const type=document.getElementById('f-type').value;
