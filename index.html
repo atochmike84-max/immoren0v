@@ -3014,51 +3014,19 @@ function genEDLPdf(edlId){
 </div>`;
 
   // ── PAGES CONTENU par PIÈCE ──
-  let pg2='';
-  rooms.forEach((room,ri)=>{
+  let pg2='<div class="page content"><div class="content-header"><div class="content-header-left"><div class="ch-title">Inventaire d\u00e9taill\u00e9</div><div class="ch-sub">'+( e.tenantName||'Parties communes')+' \u00b7 '+fmtD(e.date)+'</div></div><div class="ch-ref">'+refNum+'</div></div>';
+  rooms.forEach((room)=>{
     const its=e.items.filter(it=>it.room===room);
-    pg2+=`
-<div class="page content ${ri===0?'first-content':''}">
-  ${ri===0?`<div class="content-header">
-    <div class="content-header-left">
-      <div class="ch-title">Inventaire détaillé</div>
-      <div class="ch-sub">${e.tenantName||'Parties communes'} · ${fmtD(e.date)}</div>
-    </div>
-    <div class="ch-ref">${refNum}</div>
-  </div>`:''}
-  <div class="room-header">
-    <div class="room-icon">🏠</div>
-    <div class="room-name">${room}</div>
-    <div class="room-count">${its.length} élément${its.length>1?'s':''}</div>
-  </div>
-  <table class="items-table">
-    <thead>
-      <tr>
-        <th style="width:40%">Élément</th>
-        <th style="width:20%">État constaté</th>
-        <th style="width:40%">Observations</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${its.map((it,idx)=>`
-        <tr class="${idx%2===0?'row-even':'row-odd'}${(it.etat==='Dégradé'||it.etat==='Mauvais')?' row-alert':''}">
-          <td>
-            <div class="item-name">${it.name}</div>
-            ${it.brand?`<div class="item-brand">${it.brand}</div>`:''}
-          </td>
-          <td>
-            <span class="state-badge" style="background:${SBG[it.etat]||'#f5f5f5'};color:${SC[it.etat]||'#555'};border:1px solid ${SC[it.etat]||'#ccc'}40">
-              ${it.etat}
-            </span>
-          </td>
-          <td class="item-notes">${it.notes||'<span style="color:#bbb">—</span>'}</td>
-        </tr>
-        ${(it.photos||[]).length?`<tr class="photo-row"><td colspan="3"><div class="photo-inline-label">📷 Photos dégâts — ${it.name}</div><div class="photo-inline-grid">${it.photos.map(ph=>`<img src="${ph}" class="photo-inline">`).join('')}</div></td></tr>`:''}
-      `).join('')}
-    </tbody>
-  </table>
-</div>`;
+    const SC2={'N\u00e9uf':'#0a7c4a','Tr\u00e8s bon':'#1a9e5c','Bon':'#27ae60','Bon \u00e9tat':'#27ae60','Usure normale':'#d67c00','Correct':'#d67c00','D\u00e9grad\u00e9':'#c0392b','Mauvais':'#922b21'};
+    const SBG2={'N\u00e9uf':'#e8f8f1','Tr\u00e8s bon':'#eaf7f0','Bon':'#eafaf1','Bon \u00e9tat':'#eafaf1','Usure normale':'#fef9e7','Correct':'#fef9e7','D\u00e9grad\u00e9':'#fdedec','Mauvais':'#fce4e4'};
+    let rows='';
+    its.forEach((it,idx)=>{
+      rows+='<tr class="'+(idx%2===0?'row-even':'row-odd')+((it.etat==='D\u00e9grad\u00e9'||it.etat==='Mauvais')?' row-alert':'')+'"><td><div class="item-name">'+it.name+'</div>'+(it.brand?'<div class="item-brand">'+it.brand+'</div>':'')+'</td><td><span class="state-badge" style="background:'+(SBG2[it.etat]||'#f5f5f5')+';color:'+(SC2[it.etat]||'#555')+';border:1px solid '+(SC2[it.etat]||'#ccc')+'40">'+it.etat+'</span></td><td class="item-notes">'+(it.notes||'<span style="color:#bbb">\u2014</span>')+'</td></tr>';
+      if((it.photos||[]).length){rows+='<tr class="photo-row"><td colspan="3"><div class="photo-inline-label">\ud83d\udcf7 Photos d\u00e9g\u00e2ts \u2014 '+it.name+'</div><div class="photo-inline-grid">'+it.photos.map(ph=>'<img src="'+ph+'" class="photo-inline">').join('')+'</div></td></tr>';}
+    });
+    pg2+='<div class="room-block"><div class="room-header"><div class="room-icon">\ud83c\udfe0</div><div class="room-name">'+room+'</div><div class="room-count">'+its.length+' \u00e9l\u00e9ment'+(its.length>1?'s':'')+'</div></div><table class="items-table"><thead><tr><th style="width:40%">\u00c9l\u00e9ment</th><th style="width:20%">\u00c9tat constat\u00e9</th><th style="width:40%">Observations</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   });
+  pg2+='</div>';
 
   // ── PAGE SIGNATURES ──
   let pg3=`
@@ -3109,7 +3077,10 @@ function genEDLPdf(edlId){
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Inter',Helvetica,Arial,sans-serif;background:#e8e8e8;color:#1a1a2e;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .page{background:#fff;width:210mm;min-height:297mm;margin:0 auto 20px;padding:0;position:relative;box-shadow:0 4px 24px rgba(0,0,0,.15);page-break-after:always}
+    .page{background:#fff;width:210mm;margin:0 auto 20px;padding:0;position:relative;box-shadow:0 4px 24px rgba(0,0,0,.15);page-break-after:always}
+    .page.cover,.page.signature-page{min-height:297mm}
+    .page.content{min-height:unset}
+    .room-block{page-break-inside:avoid;margin-bottom:0}
     @media print{body{background:#fff}.page{box-shadow:none;margin:0;width:100%}}
 
     /* ── HEADER BAND ── */
