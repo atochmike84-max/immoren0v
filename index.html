@@ -2210,6 +2210,22 @@ function rRents(el){
   ${!p.rents.length?'<div class="empty">Aucun loyer — cliquez sur "Générer" pour ce mois</div>':''}`;
 }
 
+function calcProrataLoyer(t, tm){
+  // tm = "YYYY-MM"
+  if(!t.leaseStart) return t.rent;
+  const leaseStart = new Date(t.leaseStart + 'T12:00:00');
+  const [yr, mo] = tm.split('-').map(Number);
+  const moisLoyer = new Date(yr, mo - 1, 1);
+  const moisSuivant = new Date(yr, mo, 1);
+  // Prorata uniquement si le bail démarre ce mois-ci ET pas le 1er
+  if(leaseStart >= moisLoyer && leaseStart < moisSuivant && leaseStart.getDate() > 1){
+    const joursTotal = Math.round((moisSuivant - moisLoyer) / 86400000);
+    const joursOccupes = Math.round((moisSuivant - leaseStart) / 86400000);
+    const montant = Math.round((t.rent / joursTotal) * joursOccupes * 100) / 100;
+    return montant;
+  }
+  return t.rent;
+}
 function genMonthlyRents(){
   const p=P();if(!p)return;ensure(p);
   const tm=thisMonth();
@@ -2217,7 +2233,20 @@ function genMonthlyRents(){
   let created=0;
   activeT.forEach(t=>{
     if(!p.rents.some(r=>r.tenantId===t.id&&r.month===tm)){
-      p.rents.push({id:Date.now()+Math.random(),month:tm,amount:t.rent,paid:false,paidDate:null,tenantId:t.id,notes:''});
+      const amount = calcProrataLoyer(t, tm);
+      const [yr, mo] = tm.split('-').map(Number);
+      let notes = '';
+      if(t.leaseStart){
+        const leaseStart = new Date(t.leaseStart + 'T12:00:00');
+        const moisLoyer = new Date(yr, mo - 1, 1);
+        const moisSuivant = new Date(yr, mo, 1);
+        if(leaseStart >= moisLoyer && leaseStart < moisSuivant && leaseStart.getDate() > 1){
+          const joursTotal = Math.round((moisSuivant - moisLoyer) / 86400000);
+          const joursOccupes = Math.round((moisSuivant - leaseStart) / 86400000);
+          notes = `Prorata du ${leaseStart.getDate()}/${mo}/${yr} (${joursOccupes}j/${joursTotal}j)`;
+        }
+      }
+      p.rents.push({id:Date.now()+Math.random(),month:tm,amount,paid:false,paidDate:null,tenantId:t.id,notes});
       created++;
     }
   });
