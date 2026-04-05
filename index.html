@@ -1992,7 +1992,7 @@ function rTenants(el){
         ${tag(t.status==='active'?'Actif':'Parti',t.status==='active'?'#2ecc71':'#888')}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;padding:10px 0;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);margin-bottom:11px">
-        <div><div class="lbl">Loyer</div><div style="font-size:14px;font-weight:700;color:var(--green)">${fmt(prorataAmount(t.rent,t.leaseStart,thisMonth()))}/mois${prorataAmount(t.rent,t.leaseStart,thisMonth())!==t.rent?'<div style="font-size:9px;color:var(--gold);font-weight:600">prorata ce mois</div>':''}</div></div>
+        <div><div class="lbl">Loyer</div><div style="font-size:14px;font-weight:700;color:var(--green)">${fmt(prorataAmount(t.rent,t.leaseStart,thisMonth()))}/mois${prorataAmount(t.rent,t.leaseStart,thisMonth())!==t.rent?'<span style="font-size:9px;color:var(--gold);font-weight:600;display:block">prorata ce mois</span>':''}</div></div>
         <div><div class="lbl">Dépôt</div><div style="font-size:13px;font-weight:700">${fmt(t.deposit)}</div></div>
         <div><div class="lbl">Fin bail</div><div style="font-size:12px;font-weight:600">${fmtD(t.leaseEnd)}</div></div>
       </div>
