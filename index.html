@@ -2190,21 +2190,20 @@ function rRents(el){
   ${!p.rents.length?'<div class="empty">Aucun loyer — cliquez sur "Générer" pour ce mois</div>':''}`;
 }
 
-function calcProrataLoyer(t, tm){
+function prorataAmount(rent, leaseStart, tm){
   // tm = "YYYY-MM"
-  if(!t.leaseStart) return t.rent;
-  const leaseStart = new Date(t.leaseStart + 'T12:00:00');
+  if(!leaseStart) return rent;
+  const startD = new Date(leaseStart + 'T12:00:00');
   const [yr, mo] = tm.split('-').map(Number);
   const moisLoyer = new Date(yr, mo - 1, 1);
   const moisSuivant = new Date(yr, mo, 1);
   // Prorata uniquement si le bail démarre ce mois-ci ET pas le 1er
-  if(leaseStart >= moisLoyer && leaseStart < moisSuivant && leaseStart.getDate() > 1){
+  if(startD >= moisLoyer && startD < moisSuivant && startD.getDate() > 1){
     const joursTotal = Math.round((moisSuivant - moisLoyer) / 86400000);
-    const joursOccupes = Math.round((moisSuivant - leaseStart) / 86400000);
-    const montant = Math.round((t.rent / joursTotal) * joursOccupes * 100) / 100;
-    return montant;
+    const joursOccupes = Math.round((moisSuivant - startD) / 86400000);
+    return Math.round((rent / joursTotal) * joursOccupes * 100) / 100;
   }
-  return t.rent;
+  return rent;
 }
 function genMonthlyRents(){
   const p=P();if(!p)return;ensure(p);
@@ -2213,7 +2212,7 @@ function genMonthlyRents(){
   let created=0;
   activeT.forEach(t=>{
     if(!p.rents.some(r=>r.tenantId===t.id&&r.month===tm)){
-      const amount = calcProrataLoyer(t, tm);
+      const amount = prorataAmount(t.rent, t.leaseStart, tm);
       const [yr, mo] = tm.split('-').map(Number);
       let notes = '';
       if(t.leaseStart){
@@ -2239,7 +2238,9 @@ function createRentForTenant(tenantId){
   const p=P();if(!p)return;ensure(p);
   const t=p.tenants.find(x=>x.id===tenantId);if(!t)return;
   const tm=thisMonth();
-  p.rents.push({id:Date.now(),month:tm,amount:t.rent,paid:false,paidDate:null,tenantId,notes:''});
+  const amount=prorataAmount(t.rent,t.leaseStart,tm);
+  const notes=amount!==t.rent?`Loyer proratisé (entrée le ${t.leaseStart})`:'';
+  p.rents.push({id:Date.now(),month:tm,amount,paid:false,paidDate:null,tenantId,notes});
   addLog(`a créé loyer ${fmtM(tm)} pour ${t.name}`);
   renderTab('rents');scheduleSave();updateReminderBadge();toast('Loyer créé ✓','ok');
 }
