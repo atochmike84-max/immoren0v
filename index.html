@@ -8,13 +8,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ImmoRénov">
-<title>ImmoRénov V4</title>
+<title>ImmoRénov V12</title>
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp, collection, getDocs }
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp }
   from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { getStorage, ref, uploadString, getDownloadURL, deleteObject }
   from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
@@ -32,7 +32,7 @@ try {
   const storage = getStorage(app);
   window._db = db;
   window._storage = storage;
-  window._fb = { doc, setDoc, getDoc, onSnapshot, serverTimestamp, collection, getDocs };
+  window._fb = { doc, setDoc, getDoc, onSnapshot, serverTimestamp };
   window._fbs = { ref, uploadString, getDownloadURL, deleteObject };
   window._fbOK = true;
 } catch(e) { window._fbOK = false; }
@@ -359,6 +359,7 @@ select option{background:var(--bg2)}
 .scan-corner.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 5px 0}
 .scan-line{position:absolute;left:6px;right:6px;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:scanline 2.2s ease-in-out infinite}
 @keyframes scanline{0%,100%{top:10px;opacity:.7}50%{top:calc(100% - 10px);opacity:1}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .scan-hint{color:rgba(255,255,255,.9);font-size:13px;font-weight:600;text-align:center;margin-bottom:16px;text-shadow:0 1px 4px rgba(0,0,0,.8)}
 .scan-btns{display:flex;gap:12px;pointer-events:auto}
 .scan-capture{
@@ -602,6 +603,9 @@ select option{background:var(--bg2)}
 .notes-area{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:12px;padding:12px 14px;color:var(--t1);font-size:13px;font-family:inherit;outline:none;resize:none;min-height:80px;line-height:1.6;transition:border-color .18s}
 .notes-area:focus{border-color:var(--gold)}
 
+/* ── LABEL UPPERCASE ── */
+.lbl{color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700;letter-spacing:.04em}
+
 @media(max-width:380px){
   .kg3{grid-template-columns:1fr 1fr}
   .prop-grid{grid-template-columns:1fr}
@@ -679,11 +683,7 @@ select option{background:var(--bg2)}
       </div>
       <button class="btn btn-sm" onclick="openPropModal()">+ Bien</button>
     </div>
-    <!-- Bloc connexions collaborateurs -->
-    <div class="card" id="pf-conn-card" style="margin-bottom:11px;display:none">
-      <div class="sl" style="margin-bottom:8px">👥 Collaborateurs</div>
-      <div id="pf-connections"></div>
-    </div>
+
     <div class="card" id="global-kpis" style="margin-bottom:13px"></div>
     <div class="prop-grid" id="prop-grid"></div>
   </div>
@@ -706,7 +706,6 @@ select option{background:var(--bg2)}
   </div>
   <div class="syncbar">
     <span id="sync-txt" style="color:var(--green)">⬤ Synchronisé</span>
-    <div id="online-users" style="display:flex;gap:9px"></div>
   </div>
   <!-- Barre de contexte active -->
   <div id="ctx-bar" style="background:var(--bg2);border-bottom:1px solid var(--bd);padding:8px 15px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -778,6 +777,18 @@ select option{background:var(--bg2)}
   </div>
 </div>
 
+<!-- CONFIRM DIALOG -->
+<div id="cdlg-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);padding:22px 20px;max-width:320px;width:100%;box-shadow:var(--sh)">
+    <div id="cdlg-icon" style="font-size:28px;text-align:center;margin-bottom:10px"></div>
+    <div id="cdlg-msg" style="color:var(--t1);font-size:14px;font-weight:600;text-align:center;line-height:1.5;margin-bottom:18px"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-g" style="flex:1;padding:12px" onclick="cdlgResolve(false)">Annuler</button>
+      <button id="cdlg-ok" class="btn" style="flex:1;padding:12px" onclick="cdlgResolve(true)">Supprimer</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══ CRYPTO ══
 async function deriveKey(pw){
@@ -823,7 +834,7 @@ const INV_ETAT=['Neuf','Très bon','Bon','Usure normale','Dégradé','Mauvais'];
 let STATE={properties:{},partners:[]};
 let SES=null,curId=null,curTab='dashboard';
 let ANTHROPIC_KEY=''; // Clé API Anthropic pour l'OCR et l'IA
-let saveTimer=null,lastSaved=null,fbUnsub=null,presIv=null,onIv=null,isDark=true;
+let saveTimer=null,lastSaved=null,fbUnsub=null,isDark=true;
 let scanMode='expense',scanTenantId=null,scanPhaseId=null,scanEDLId=null,scanRoomIdx=null;
 let scannerStream=null;
 
@@ -936,48 +947,7 @@ function startListener(){
     updateReminderBadge();
   },()=>setSync('error'));
 }
-function startPresence(){
-  if(!window._fbOK||!SES)return;
-  const{doc,setDoc,collection,getDocs}=window._fb;
-  const beat=()=>setDoc(doc(window._db,'projects',SES.projectId,'presence',SES.username),{username:SES.username,ts:Date.now(),displayName:SES.username}).catch(()=>{});
-  beat();presIv=setInterval(beat,20000);
-  const read=async()=>{
-    try{
-      const snap=await getDocs(collection(window._db,'projects',SES.projectId,'presence'));
-      const now=Date.now(),users=[];
-      snap.forEach(d=>{const x=d.data();users.push({...x,online:now-x.ts<40000});});
-      // Syncbar dans detail page
-      const el=document.getElementById('online-users');
-      if(el)el.innerHTML=users.filter(u=>u.online).map(u=>`<span style="color:${u.username===SES.username?'#2ecc71':'#3498db'};font-size:10px">● ${u.username}${u.username===SES.username?' (vous)':''}</span>`).join('');
-      // Dernière connexion sur portfolio
-      const pfConn=document.getElementById('pf-connections');
-      if(pfConn){
-        const others=users.filter(u=>u.username!==SES.username).sort((a,b)=>b.ts-a.ts);
-        if(others.length){
-          pfConn.innerHTML=others.map(u=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--bd2)">
-            <div style="width:8px;height:8px;border-radius:50%;background:${u.online?'var(--green)':'var(--t4)'}"></div>
-            <div style="color:var(--t1);font-size:13px;font-weight:600">${u.username}</div>
-            <div style="color:var(--t4);font-size:11px;margin-left:auto">${u.online?'En ligne':'Vu '+fmtTimeAgo(u.ts)}</div>
-          </div>`).join('');
-        } else {
-          pfConn.innerHTML='<div style="color:var(--t4);font-size:12px">Aucun autre utilisateur connecté</div>';
-        }
-      }
-    }catch{}
-  };
-  read();onIv=setInterval(read,15000);
-}
 
-function fmtTimeAgo(ts){
-  const diff=Date.now()-ts;
-  const m=Math.floor(diff/60000);
-  const h=Math.floor(diff/3600000);
-  const d=Math.floor(diff/86400000);
-  if(m<1)return"à l\'instant";
-  if(m<60)return"il y a "+m+"min";
-  if(h<24)return"il y a "+h+"h";
-  return"il y a "+d+"j";
-}
 
 // ══ LOGIN ══
 document.getElementById('eye-btn').onclick=()=>{
@@ -1051,7 +1021,7 @@ async function doLogin(){
     showPage('portfolio-page');
     document.getElementById('pf-proj').textContent=pid;
     document.getElementById('pf-user').textContent='Connecté : '+name;
-    startListener();startPresence();
+    startListener();
     if(!window._fbOK)setSync('local','pf-sync');
     renderPortfolio();updateReminderBadge();
     toast('Bienvenue '+name+' ✓','ok');
@@ -1062,7 +1032,7 @@ async function doLogin(){
 }
 function showErr(m){const e=document.getElementById('l-err');e.textContent=m;e.style.display='block';}
 function logout(){
-  if(fbUnsub)fbUnsub();clearInterval(presIv);clearInterval(onIv);closeScanner();
+  if(fbUnsub)fbUnsub();closeScanner();
   try{localStorage.removeItem('ir-session');}catch{}
   SES=null;curId=null;showPage('login-page');
 }
@@ -1300,7 +1270,7 @@ async function analyzeReceiptWithAI(photo){
       <div style="color:var(--t1);font-weight:700;font-size:15px;margin-bottom:8px">Lecture du ticket...</div>
       <div style="color:var(--t4);font-size:13px">Claude analyse votre photo</div>
     </div>
-    <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>`);
+    `);
   openMod();
 
   try {
@@ -1547,8 +1517,9 @@ function showReminders(){
     </div>`).join(''));
   openMod();
 }
-function openGCal(title,date,desc=''){
-  if(!confirm(`Ajouter "${title}" à Google Agenda ?`))return;
+async function openGCal(title,date,desc=''){
+  const ok=await confirmDlg(`Ajouter "${title}" à Google Agenda ?`,'📅','Ajouter');
+  if(!ok)return;
   const s=new Date(date+'T09:00:00');const e=new Date(s.getTime()+3600000);
   const f=d=>d.toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
   window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${f(s)}/${f(e)}&details=${encodeURIComponent(desc+'\n\nVia ImmoRénov')}`, '_blank');
@@ -1557,12 +1528,6 @@ function openGCal(title,date,desc=''){
 // ══ PORTFOLIO ══
 function renderPortfolio(){
   const props=Object.values(STATE.properties);
-  // Afficher/cacher card connexions selon nombre de partenaires
-  const connCard=document.getElementById('pf-conn-card');
-  if(connCard){
-    const others=(STATE.partners||[]).filter(p=>p!==SES?.username);
-    connCard.style.display=others.length?'block':'none';
-  }
   if(!props.length){
     document.getElementById('global-kpis').innerHTML='<div class="empty">Ajoutez votre premier bien ci-dessous</div>';
     document.getElementById('prop-grid').innerHTML=`<button class="add-pc" onclick="openPropModal()"><div style="font-size:30px;color:var(--t4)">＋</div><div style="color:var(--t4);font-size:13px;font-weight:600">Ajouter un bien</div></button>`;
@@ -1602,9 +1567,9 @@ function renderPortfolio(){
       <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;color:var(--t1);margin-bottom:2px;letter-spacing:-.01em">${p.info.name}</div>
       <div style="color:var(--t4);font-size:11px;margin-bottom:10px">${p.info.address||'—'}</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:9px">
-        <div><div style="color:var(--t4);font-size:9px;font-weight:700;text-transform:uppercase">Loyer</div><div style="font-size:13px;font-weight:700;color:var(--green)">${fmt(p.info.targetRent)}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;font-weight:700;text-transform:uppercase">Dépenses</div><div style="font-size:13px;font-weight:700;color:var(--orange)">${fmt(pExp)}</div></div>
-        ${actT?`<div><div style="color:var(--t4);font-size:9px;font-weight:700;text-transform:uppercase">Locataire</div><div style="font-size:12px;font-weight:700;color:${rPaid?'var(--green)':'var(--red)'}">${actT.name.split(' ')[0]} ${rPaid?'✓':'⚠'}</div></div>`:''}
+        <div><div class="lbl">Loyer</div><div style="font-size:13px;font-weight:700;color:var(--green)">${fmt(p.info.targetRent)}</div></div>
+        <div><div class="lbl">Dépenses</div><div style="font-size:13px;font-weight:700;color:var(--orange)">${fmt(pExp)}</div></div>
+        ${actT?`<div><div class="lbl">Locataire</div><div style="font-size:12px;font-weight:700;color:${rPaid?'var(--green)':'var(--red)'}">${actT.name.split(' ')[0]} ${rPaid?'✓':'⚠'}</div></div>`:''}
       </div>
       ${p.phases.length?`<div style="display:flex;gap:7px;align-items:center;margin-bottom:9px"><div style="flex:1"><div class="pb" style="height:4px"><div class="pf" style="width:${pct}%;background:${p.info.color}"></div></div></div><span style="color:var(--t4);font-size:10px;font-weight:700">${pct}%</span></div>`:''}
       <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
@@ -1653,21 +1618,19 @@ function openPropModal(id){
 function pickCol(c,el){document.querySelectorAll('.cdot').forEach(d=>d.classList.remove('sel'));el.classList.add('sel');document.getElementById('f-color').value=c;}
 function saveProp(id){
   const info={name:document.getElementById('f-name').value.trim(),address:document.getElementById('f-addr').value.trim(),type:document.getElementById('f-type').value,surface:parseFloat(document.getElementById('f-surf').value)||0,purchasePrice:parseFloat(document.getElementById('f-price').value)||0,targetRent:parseFloat(document.getElementById('f-rent').value)||0,status:document.getElementById('f-status').value,color:document.getElementById('f-color').value,dpe:document.getElementById('f-dpe')?.value||''};
-  if(!info.name){alert('Le nom est requis.');return;}
+  if(!info.name){toast('Le nom est requis.','err');return;}
   if(id&&STATE.properties[id]){STATE.properties[id].info=info;if(curId===id){document.getElementById('d-name').textContent=info.name;document.getElementById('d-addr').textContent=info.address;}}
   else{const nid=Date.now();STATE.properties[nid]={id:nid,info,phases:[],materials:[],artisans:[],tenants:[],rents:[],charges:[],expenses:[],edls:[],inventory:[],events:[],activityLog:[]};}
   closeMod();renderPortfolio();scheduleSave();toast('Bien enregistré ✓','ok');
 }
-function delProp(id){
+async function delProp(id){
   const p=STATE.properties[id];if(!p)return;
   const name=p.info?.name||'ce bien';
-  if(!confirm(`⚠️ Supprimer "${name}" ?
-
-Toutes les données seront perdues définitivement (locataires, loyers, dépenses, photos...).`))return;
-  if(!confirm(`Confirmer la suppression de "${name}" ?`))return;
+  const ok=await confirmDlg(`Supprimer "${name}" ?\n\nToutes les données seront perdues définitivement.`,'⚠️','Supprimer');
+  if(!ok)return;
   delete STATE.properties[id];
   if(curId===id){curId=null;}
-  renderPortfolio();scheduleSave();toast('Bien supprimé');
+  renderPortfolio();scheduleSave();toast('Bien supprimé ✓','ok');
 }
 
 // ══ MODAL HELPERS ══
@@ -1678,13 +1641,29 @@ function toast(m,type=''){
   const t=document.getElementById('toast');t.textContent=m;t.className='on'+(type?' '+type:'');
   clearTimeout(t._t);t._t=setTimeout(()=>{t.className='';},type?3500:2500);
 }
-function delItem(col,id){
+let _cdlgResolve=null;
+function confirmDlg(msg,icon='⚠️',okLabel='Supprimer'){
+  return new Promise(res=>{
+    _cdlgResolve=res;
+    const ov=document.getElementById('cdlg-ov');
+    document.getElementById('cdlg-icon').textContent=icon;
+    document.getElementById('cdlg-msg').textContent=msg;
+    document.getElementById('cdlg-ok').textContent=okLabel;
+    ov.style.display='flex';
+  });
+}
+function cdlgResolve(val){
+  document.getElementById('cdlg-ov').style.display='none';
+  if(_cdlgResolve){_cdlgResolve(val);_cdlgResolve=null;}
+}
+async function delItem(col,id){
   const p=P();if(!p||!p[col])return;
   const item=p[col].find(x=>x.id===id);
-  const name=item?.name||item?.label||item?.title||'cet element';
-  if(!confirm('Supprimer "'+name+'" ?'))return;
-  p[col]=p[col].filter(x=>x.id!==id);addLog('a supprime "'+name+'"');
-  renderTab(curTab);scheduleSave();toast('Supprime');
+  const name=item?.name||item?.label||item?.title||'cet élément';
+  const ok=await confirmDlg(`Supprimer "${name}" ?`,'🗑️','Supprimer');
+  if(!ok)return;
+  p[col]=p[col].filter(x=>x.id!==id);addLog('a supprimé "'+name+'"');
+  renderTab(curTab);scheduleSave();toast('Supprimé ✓','ok');
 }
 function viewPhoto(src){setMod('Photo',`<img src="${src}" style="width:100%;border-radius:10px">`);openMod();}
 // ══ DASHBOARD ══
@@ -1722,9 +1701,9 @@ function rDash(el){
       ${info.dpe?`<span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;background:${DPE_COLOR[info.dpe]||'#888'};color:#fff">DPE ${info.dpe}</span>`:''}
     </div>
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div><div style="color:var(--t4);font-size:9px;font-weight:700;text-transform:uppercase">Prix achat</div><div style="color:${info.color};font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em">${fmt(info.purchasePrice)}</div></div>
-      <div><div style="color:var(--t4);font-size:9px;font-weight:700;text-transform:uppercase">Loyer/mois</div><div style="color:var(--green);font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em">${fmt(info.targetRent)}</div></div>
-      <div><div style="color:var(--t4);font-size:9px;font-weight:700;text-transform:uppercase">Rdt net</div><div style="color:#1abc9c;font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em">${roiN}%</div></div>
+      <div><div class="lbl">Prix achat</div><div style="color:${info.color};font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em">${fmt(info.purchasePrice)}</div></div>
+      <div><div class="lbl">Loyer/mois</div><div style="color:var(--green);font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em">${fmt(info.targetRent)}</div></div>
+      <div><div class="lbl">Rdt net</div><div style="color:#1abc9c;font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em">${roiN}%</div></div>
     </div>
   </div>
 
@@ -1870,8 +1849,8 @@ function rWorks(el){
         </div>
       </div>
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:9px">
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Budget</div><div style="font-size:13px;font-weight:700">${fmt(x.budget)}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Dépensé</div><div style="font-size:13px;font-weight:700;color:${x.spent>x.budget?'var(--red)':'var(--green)'}">${fmt(x.spent)}</div></div>
+        <div><div class="lbl">Budget</div><div style="font-size:13px;font-weight:700">${fmt(x.budget)}</div></div>
+        <div><div class="lbl">Dépensé</div><div style="font-size:13px;font-weight:700;color:${x.spent>x.budget?'var(--red)':'var(--green)'}">${fmt(x.spent)}</div></div>
         <div style="flex:1"><div class="pb" style="height:5px"><div class="pf" style="width:${Math.min(100,x.budget>0?x.spent/x.budget*100:0)}%;background:${x.color}"></div></div></div>
       </div>
       ${(x.photos||[]).length?`<div style="display:flex;gap:5px;overflow-x:auto;margin-bottom:9px">${x.photos.slice(0,5).map(ph=>`<img src="${ph}" style="height:58px;width:58px;object-fit:cover;border-radius:7px;flex-shrink:0;border:1px solid var(--bd);cursor:pointer" onclick="viewPhoto('${ph}')">`).join('')}</div>`:''}
@@ -1922,7 +1901,7 @@ function openPhaseModal(id){
 function savePhase(id){
   const p=P();if(!p)return;if(!p.phases)p.phases=[];
   const item={name:document.getElementById('f-name').value.trim(),status:document.getElementById('f-st').value,startDate:document.getElementById('f-sd').value,endDate:document.getElementById('f-ed').value,budget:parseFloat(document.getElementById('f-b').value)||0,spent:parseFloat(document.getElementById('f-sp').value)||0,color:document.getElementById('f-color').value,description:document.getElementById('f-desc').value.trim()};
-  if(!item.name){alert('Nom requis.');return;}
+  if(!item.name){toast('Nom requis.','err');return;}
   if(id){const old=p.phases.find(x=>x.id===id);p.phases=p.phases.map(x=>x.id===id?{...item,id,photos:old?.photos||[]}:x);}
   else{p.phases.push({...item,id:Date.now(),photos:[]});addLog(`a créé la phase "${item.name}"`);}
   closeMod();renderTab('works');scheduleSave();toast('Phase enregistrée ✓','ok');
@@ -1947,9 +1926,9 @@ function rArtisans(el){
       <div style="color:var(--t3);font-size:12px;margin-bottom:9px">📞 ${a.phone}${a.email?' · ✉ '+a.email:''}${a.phaseId?` · 🔗 ${P()?.phases?.find(ph=>ph.id==a.phaseId)?.name||'Phase liée'}`:''}
       </div>
       <div style="display:flex;gap:14px;padding:9px 0;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);margin-bottom:10px">
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Devis</div><div style="font-weight:700">${fmt(a.quote)}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Facture</div><div style="font-weight:700;color:${a.invoice!=null?(diff>0?'var(--red)':'var(--green)'):'var(--t4)'}">${a.invoice!=null?fmt(a.invoice):'En attente'}</div></div>
-        ${diff!==null?`<div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Écart</div><div style="font-weight:700;color:${diff>0?'var(--red)':'var(--green)'}">${diff>0?'+':''}${fmt(diff)}</div></div>`:''}
+        <div><div class="lbl">Devis</div><div style="font-weight:700">${fmt(a.quote)}</div></div>
+        <div><div class="lbl">Facture</div><div style="font-weight:700;color:${a.invoice!=null?(diff>0?'var(--red)':'var(--green)'):'var(--t4)'}">${a.invoice!=null?fmt(a.invoice):'En attente'}</div></div>
+        ${diff!==null?`<div><div class="lbl">Écart</div><div style="font-weight:700;color:${diff>0?'var(--red)':'var(--green)'}">${diff>0?'+':''}${fmt(diff)}</div></div>`:''}
       </div>
       <div style="display:flex;gap:6px">
         <button class="btn-g btn-sm" style="flex:1" onclick="openArtModal(${a.id})">✎ Modifier</button>
@@ -1985,7 +1964,7 @@ function saveArt(id){
   const p=P();if(!p)return;ensure(p);
   const inv=document.getElementById('f-inv').value;
   const item={name:document.getElementById('f-name').value.trim(),trade:document.getElementById('f-trade').value.trim(),phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),status:document.getElementById('f-st').value,quote:parseFloat(document.getElementById('f-q').value)||0,invoice:inv?parseFloat(inv):null,rating:parseInt(document.getElementById('f-r').value),notes:document.getElementById('f-notes').value.trim(),phaseId:parseInt(document.getElementById('f-phase')?.value)||null};
-  if(!item.name){alert('Nom requis.');return;}
+  if(!item.name){toast('Nom requis.','err');return;}
   if(id){p.artisans=p.artisans.map(a=>a.id===id?{...item,id}:a);}
   else{p.artisans.push({...item,id:Date.now()});addLog(`a ajouté artisan "${item.name}"`);}
   closeMod();renderTab('artisans');scheduleSave();toast('Artisan enregistré ✓','ok');
@@ -2013,14 +1992,14 @@ function rTenants(el){
         ${tag(t.status==='active'?'Actif':'Parti',t.status==='active'?'#2ecc71':'#888')}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;padding:10px 0;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);margin-bottom:11px">
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Loyer</div><div style="font-size:14px;font-weight:700;color:var(--green)">${fmt(prorataAmount(t.rent,t.leaseStart,thisMonth()))}/mois${prorataAmount(t.rent,t.leaseStart,thisMonth())!==t.rent?'<div style="font-size:9px;color:var(--gold);font-weight:600">prorata ce mois</div>':''}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Dépôt</div><div style="font-size:13px;font-weight:700">${fmt(t.deposit)}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Fin bail</div><div style="font-size:12px;font-weight:600">${fmtD(t.leaseEnd)}</div></div>
+        <div><div class="lbl">Loyer</div><div style="font-size:14px;font-weight:700;color:var(--green)">${fmt(prorataAmount(t.rent,t.leaseStart,thisMonth()))}/mois${prorataAmount(t.rent,t.leaseStart,thisMonth())!==t.rent?'<div style="font-size:9px;color:var(--gold);font-weight:600">prorata ce mois</div>':''}</div></div>
+        <div><div class="lbl">Dépôt</div><div style="font-size:13px;font-weight:700">${fmt(t.deposit)}</div></div>
+        <div><div class="lbl">Fin bail</div><div style="font-size:12px;font-weight:600">${fmtD(t.leaseEnd)}</div></div>
       </div>
       <!-- Dossier documents -->
       <div style="margin-bottom:11px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-          <div style="color:var(--t4);font-size:10px;font-weight:700;text-transform:uppercase">Dossier (${(t.docs||[]).length} doc.)</div>
+          <div class="lbl">Dossier (${(t.docs||[]).length} doc.)</div>
           <button class="btn-scan btn-sm" style="padding:5px 10px;font-size:11px" onclick="scanTenantId=${t.id};openScanner('tenant-doc')">📷 Ajouter</button>
         </div>
         ${(t.docs||[]).length?`
@@ -2081,7 +2060,7 @@ function openTenantModal(id){
 function saveTenant(id){
   const p=P();if(!p)return;ensure(p);
   const item={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),leaseStart:document.getElementById('f-ls').value,leaseEnd:document.getElementById('f-le').value,rent:parseFloat(document.getElementById('f-rent').value)||0,deposit:parseFloat(document.getElementById('f-dep').value)||0,status:document.getElementById('f-st').value,notes:document.getElementById('f-notes').value.trim(),garantName:document.getElementById('f-garant-name')?.value.trim()||'',garantPhone:document.getElementById('f-garant-phone')?.value.trim()||'',garantEmail:document.getElementById('f-garant-email')?.value.trim()||'',driveLink:document.getElementById('f-drive')?.value.trim()||''};
-  if(!item.name){alert('Nom requis.');return;}
+  if(!item.name){toast('Nom requis.','err');return;}
   if(id){const old=p.tenants.find(t=>t.id===id);p.tenants=p.tenants.map(t=>t.id===id?{...item,id,docs:old?.docs||[]}:t);addLog(`a modifié "${item.name}"`);}
   else{p.tenants.push({...item,id:Date.now(),docs:[]});addLog(`a ajouté locataire "${item.name}"`);}
   closeMod();renderTab('tenants');scheduleSave();updateReminderBadge();toast('Locataire enregistré ✓','ok');
@@ -2128,11 +2107,12 @@ function viewDocModal(tid,idx){
     </div>`);
   openMod();
 }
-function deleteDoc(tid,idx){
+async function deleteDoc(tid,idx){
   const p=P();if(!p)return;
   const t=p.tenants.find(x=>x.id===tid);if(!t||!t.docs)return;
-  if(!confirm('Supprimer ce document ?'))return;
-  t.docs.splice(idx,1);closeMod();renderTab('tenants');scheduleSave();toast('Document supprimé');
+  const ok=await confirmDlg('Supprimer ce document ?','🗑️','Supprimer');
+  if(!ok)return;
+  t.docs.splice(idx,1);closeMod();renderTab('tenants');scheduleSave();toast('Document supprimé ✓','ok');
 }
 
 // ══ RENTS ══
@@ -2362,7 +2342,7 @@ function openChargeModal(id){
 function saveCharge(id){
   const p=P();if(!p)return;ensure(p);
   const item={name:document.getElementById('f-name').value.trim(),category:document.getElementById('f-cat').value,amount:parseFloat(document.getElementById('f-amt').value)||0,frequency:document.getElementById('f-freq').value,nextDate:document.getElementById('f-date').value||null,paid:document.getElementById('f-paid').value==='true',recuperable:document.getElementById('f-recup')?.checked||false};
-  if(!item.name){alert('Nom requis.');return;}
+  if(!item.name){toast('Nom requis.','err');return;}
   if(id){p.charges=p.charges.map(c=>c.id===id?{...item,id}:c);}
   else{p.charges.push({...item,id:Date.now()});addLog(`a ajouté charge "${item.name}"`);}
   closeMod();renderTab('charges');scheduleSave();updateReminderBadge();toast('Charge enregistrée ✓','ok');
@@ -2512,8 +2492,8 @@ function saveExpense(id){
   const p=P();if(!p)return;ensure(p);
   const label=document.getElementById('f-label').value.trim();
   const amount=parseFloat(document.getElementById('f-amt').value)||0;
-  if(!label){alert('Le libellé est requis.');return;}
-  if(!amount){alert('Le montant est requis.');return;}
+  if(!label){toast('Le libellé est requis.','err');return;}
+  if(!amount){toast('Le montant est requis.','err');return;}
   const rec=document.getElementById('f-rec').checked;
   const photoVal=document.getElementById('f-photo').value||null;
   const phaseIdVal=parseInt(document.getElementById('f-phase')?.value)||null;
@@ -2613,9 +2593,9 @@ function rEDL(el){
         </div>
       </div>
       <div style="display:flex;gap:14px;margin-bottom:11px">
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Objets</div><div style="font-weight:700">${(e.items||[]).length}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Photos</div><div style="font-weight:700">${(e.items||[]).reduce((s,it)=>s+(it.photos||[]).length,0)}</div></div>
-        <div><div style="color:var(--t4);font-size:9px;text-transform:uppercase;font-weight:700">Dégradés</div><div style="font-weight:700;color:${deg?'var(--red)':'var(--green)'}">${(e.items||[]).filter(i=>i.etat==='Dégradé'||i.etat==='Mauvais').length}</div></div>
+        <div><div class="lbl">Objets</div><div style="font-weight:700">${(e.items||[]).length}</div></div>
+        <div><div class="lbl">Photos</div><div style="font-weight:700">${(e.items||[]).reduce((s,it)=>s+(it.photos||[]).length,0)}</div></div>
+        <div><div class="lbl">Dégradés</div><div style="font-weight:700;color:${deg?'var(--red)':'var(--green)'}">${(e.items||[]).filter(i=>i.etat==='Dégradé'||i.etat==='Mauvais').length}</div></div>
       </div>
       <div style="display:flex;gap:6px">
         <button class="btn btn-sm" style="flex:1" onclick="openEDLFill(${e.id})">✏️ Remplir</button>
@@ -2735,7 +2715,7 @@ function saveNewEDL2(){
   const date=document.getElementById('f-date').value;
   const compareWith=document.getElementById('f-compare')?.value||null;
   const selRooms=[...document.querySelectorAll('#rooms-list button')].filter(b=>b.style.background.includes('gold3')||b.style.background.includes('var(--gold')).map(b=>b.dataset.room);
-  if(!selRooms.length){toast('Selectionnez au moins une piece','err');return;}
+  if(!selRooms.length){toast('Sélectionnez au moins une pièce','err');return;}
   const selTenants=[...document.querySelectorAll('#tenants-list button')].filter(b=>b.style.background.includes('blue2'));
   const tenantIds=selTenants.map(b=>parseInt(b.dataset.tid)).filter(id=>id>0);
   const tenantNames=selTenants.map(b=>b.dataset.tname).join(', ')||document.getElementById('f-tenant-manual')?.value.trim()||'General';
@@ -2745,8 +2725,8 @@ function saveNewEDL2(){
   selRooms.forEach(room=>{if(!items.some(it=>it.room===room))items.push({invId:null,name:'Piece - '+room,room,brand:'',etatRef:'Bon',etat:'Bon',notes:'',photos:[]});});
   const edl={id:Date.now(),type,date,scope,tenantId:mainTenantId,tenantName:tenantNames,tenantIds,compareWith:compareWith||null,items,signature:null,signatureDate:null};
   p.edls.push(edl);
-  addLog('a cree EDL '+type+' pour '+tenantNames);
-  closeMod();renderTab('edl');scheduleSave();toast('Etat des lieux cree','ok');
+  addLog('a créé EDL '+type+' pour '+tenantNames);
+  closeMod();renderTab('edl');scheduleSave();toast('État des lieux créé ✓','ok');
 }
 
 function saveNewEDL(tenantId,scope){
@@ -3296,9 +3276,9 @@ function openInvPhoto(){
 function saveInv(id){
   const p=P();if(!p)return;ensure(p);
   const item={name:document.getElementById('f-name').value.trim(),room:document.getElementById('f-room').value,brand:document.getElementById('f-brand').value.trim(),state:document.getElementById('f-state').value,value:parseFloat(document.getElementById('f-val').value)||0,serial:document.getElementById('f-serial').value.trim(),notes:document.getElementById('f-notes').value.trim(),photo:document.getElementById('f-photo').value||null};
-  if(!item.name){alert('Nom requis.');return;}
+  if(!item.name){toast('Nom requis.','err');return;}
   if(id){p.inventory=p.inventory.map(x=>x.id===id?{...item,id}:x);}
-  else{p.inventory.push({...item,id:Date.now()});addLog('a ajoute '+item.name+' a l inventaire');}
+  else{p.inventory.push({...item,id:Date.now()});addLog("a ajouté "+item.name+" à l'inventaire");}
   closeMod();renderTab('inventory');scheduleSave();toast('Article enregistré ✓','ok');
 }
 
@@ -3821,7 +3801,7 @@ async function callClaude(systemPrompt, userContent, maxTokens=1500){
   }
   try{
     const messages=[{role:'user',content:userContent}];
-    const body={model:'claude-opus-4-5',max_tokens:maxTokens,messages};
+    const body={model:'claude-sonnet-4-5',max_tokens:maxTokens,messages};
     if(systemPrompt)body.system=systemPrompt;
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
@@ -3843,8 +3823,7 @@ function iaLoading(el, msg='Analyse en cours...'){
     <div style="font-size:42px;margin-bottom:14px;display:inline-block;animation:spin 1.2s linear infinite">⚙</div>
     <div style="color:var(--t1);font-weight:700;font-size:15px;margin-bottom:6px">${msg}</div>
     <div style="color:var(--t4);font-size:13px">Claude analyse vos données...</div>
-  </div>
-  <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>`;
+  </div>`;
 }
 
 // Afficher erreur IA
@@ -4353,7 +4332,7 @@ async function analyzeDevisText(text){
 
   const p=P();
   const result=await callClaude(
-    `Tu es expert en travaux immobiliers. Analyse ce devis et évalue si les prix sont raisonnables pour la région française (prix marché 2024-2025). Réponds en JSON uniquement.`,
+    `Tu es expert en travaux immobiliers. Analyse ce devis et évalue si les prix sont raisonnables pour la région française (prix marché 2025-2026). Réponds en JSON uniquement.`,
     `Analyse ce devis :
 ${text}
 
@@ -4440,8 +4419,6 @@ function copyToClipboard(text){
   navigator.clipboard?.writeText(text).then(()=>toast('Copié ✓','ok')).catch(()=>toast('Copie non disponible','err'));
 }
 
-// processCapture pour le devis
-
 
 // ══ ÉVÉNEMENTS / RDV PLANNING ══
 function openEventModal(id){
@@ -4477,11 +4454,12 @@ function saveEvent(id){
   else{p.events.push({...item,id:Date.now()});addLog('a ajouté un RDV : '+title);}
   closeMod();renderTab('planning');scheduleSave();toast('Rendez-vous enregistré ✓','ok');
 }
-function delEvent(id){
+async function delEvent(id){
   const p=P();if(!p)return;
-  if(!confirm('Supprimer ce rendez-vous ?'))return;
+  const ok=await confirmDlg('Supprimer ce rendez-vous ?','🗑️','Supprimer');
+  if(!ok)return;
   p.events=p.events.filter(e=>e.id!==id);
-  renderTab('planning');scheduleSave();toast('Supprimé');
+  renderTab('planning');scheduleSave();toast('Supprimé ✓','ok');
 }
 
 // ══ PARAMÈTRES ══
@@ -4550,7 +4528,7 @@ function rSettings(el){
       </div>
       <div style="display:flex;justify-content:space-between;padding:8px 0">
         <span style="color:var(--t3);font-size:13px">Version</span>
-        <span style="color:var(--t1);font-size:13px">ImmoRénov V7</span>
+        <span style="color:var(--t1);font-size:13px">ImmoRénov V12</span>
       </div>
     </div>
   </div>
@@ -4578,7 +4556,6 @@ function rSettings(el){
           ${!mIsMe?`<button class="btn-d btn-xs" onclick="removeMember('${mKey}')">Retirer</button>`:''}
         </div>`;
       }).join('')}
-    </div>
     </div>
     <div style="display:flex;gap:8px">
       <input class="inp" id="new-member-name" placeholder="Prénom Nom du nouveau membre" style="flex:1">
@@ -4612,8 +4589,9 @@ function addMember(){
   toast(newName+' ajouté ✓','ok');
 }
 
-function removeMember(nameKey){
-  if(!confirm('Retirer "'+nameKey+'" des membres autorisés ?'))return;
+async function removeMember(nameKey){
+  const ok=await confirmDlg('Retirer "'+nameKey+'" des membres autorisés ?','👤','Retirer');
+  if(!ok)return;
   if(!STATE.accounts)return;
   delete STATE.accounts[nameKey];
   STATE.partners=(STATE.partners||[]).filter(p=>p.toLowerCase()!==nameKey);
@@ -4655,7 +4633,7 @@ function removeMember(nameKey){
       showPage('portfolio-page');
       document.getElementById('pf-proj').textContent=pid;
       document.getElementById('pf-user').textContent='Connecté : '+name;
-      startListener();startPresence();
+      startListener();
       if(!window._fbOK)setSync('local','pf-sync');
       renderPortfolio();updateReminderBadge();
       toast('✓ Reconnecté automatiquement','ok');
